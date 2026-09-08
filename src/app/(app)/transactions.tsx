@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { RefreshControl, SectionList } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useFocusEffect } from 'expo-router'
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight, TrendingDown, TrendingUp } from 'lucide-react-native'
 
@@ -17,26 +18,45 @@ const MONTHS = [
   'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro',
 ]
 
-const now = new Date()
-
 export default function Transactions() {
   const insets = useSafeAreaInsets()
   const qc = useQueryClient()
-  const { openEdit } = useTransactionSheet()
+  const { openEdit, createdMonth, consumeCreatedMonth } = useTransactionSheet()
 
-  const [year, setYear] = useState(now.getFullYear())
-  const [month, setMonth] = useState(now.getMonth() + 1) // 1..12
+  // Referência de "hoje" fresca a cada montagem — não pode ser módulo-nível
+  // (o bundle fica em memória por dias no app e o mês "atual" congelava).
+  const [{ year, month }, setYM] = useState(() => {
+    const d = new Date()
+    return { year: d.getFullYear(), month: d.getMonth() + 1 }
+  })
 
   const query = useQuery({ ...monthTransactionsQuery(year, month), placeholderData: keepPreviousData })
   const txs = query.data ?? []
   const cold = query.isLoading && !query.data
 
-  const isCurrentMonth = year === now.getFullYear() && month === now.getMonth() + 1
+  const today = new Date()
+  const isCurrentMonth = year === today.getFullYear() && month === today.getMonth() + 1
+
+  // Ao voltar pra aba (ex.: depois de criar pelo FAB em outra aba), recarrega o
+  // mês visível — a invalidação da mutation só refaz queries ativas.
+  useFocusEffect(
+    useCallback(() => {
+      qc.invalidateQueries({ queryKey: ['transactions', year, month] })
+    }, [qc, year, month]),
+  )
+
+  // Acabou de criar uma transação: pula pro mês dela (senão o lançamento
+  // "some" quando o mês visível é outro).
+  useEffect(() => {
+    if (createdMonth) {
+      setYM(createdMonth)
+      consumeCreatedMonth()
+    }
+  }, [createdMonth, consumeCreatedMonth])
 
   function shift(delta: number) {
     const d = new Date(year, month - 1 + delta, 1)
-    setYear(d.getFullYear())
-    setMonth(d.getMonth() + 1)
+    setYM({ year: d.getFullYear(), month: d.getMonth() + 1 })
   }
 
   const { income, expenses } = useMemo(() => {

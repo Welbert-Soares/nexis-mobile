@@ -19,10 +19,10 @@ import type { Transaction, TransactionType } from '#/schemas/transaction'
 
 type TxType = TransactionType
 
-type Props = { tx?: Transaction; onClose?: () => void }
+type Props = { tx?: Transaction; onClose?: () => void; onCreated?: (date: Date) => void }
 
 export const TransactionSheet = forwardRef<SheetRef, Props>(function TransactionSheet(
-  { tx, onClose },
+  { tx, onClose, onCreated },
   ref,
 ) {
   const isEdit = !!tx
@@ -104,6 +104,7 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
     },
     onSuccess: () => {
       invalidate()
+      if (!isEdit) onCreated?.(date)
       setSaved(true)
       setTimeout(() => (ref as React.RefObject<SheetRef>)?.current?.dismiss(), 900)
     },

@@ -4,9 +4,15 @@ import type { SheetRef } from '#/components/ui/sheet'
 import type { Transaction } from '#/schemas/transaction'
 import { TransactionSheet } from '#/components/transactions/transaction-sheet'
 
+type YearMonth = { year: number; month: number }
+
 type Ctx = {
   openNew: () => void
   openEdit: (tx: Transaction) => void
+  /** Mês (1..12) da última transação criada — a tela de Transações usa pra
+   *  pular pro mês certo e não "perder" o lançamento recém-criado. */
+  createdMonth: YearMonth | null
+  consumeCreatedMonth: () => void
 }
 
 const TransactionSheetContext = createContext<Ctx | null>(null)
@@ -18,6 +24,7 @@ const TransactionSheetContext = createContext<Ctx | null>(null)
 export function TransactionSheetProvider({ children }: { children: ReactNode }) {
   const sheetRef = useRef<SheetRef>(null)
   const [editing, setEditing] = useState<Transaction | undefined>()
+  const [createdMonth, setCreatedMonth] = useState<YearMonth | null>(null)
 
   const openNew = useCallback(() => {
     setEditing(undefined)
@@ -31,12 +38,22 @@ export function TransactionSheetProvider({ children }: { children: ReactNode }) 
     sheetRef.current?.present()
   }, [])
 
-  const value = useMemo(() => ({ openNew, openEdit }), [openNew, openEdit])
+  const consumeCreatedMonth = useCallback(() => setCreatedMonth(null), [])
+
+  const value = useMemo(
+    () => ({ openNew, openEdit, createdMonth, consumeCreatedMonth }),
+    [openNew, openEdit, createdMonth, consumeCreatedMonth],
+  )
 
   return (
     <TransactionSheetContext.Provider value={value}>
       {children}
-      <TransactionSheet ref={sheetRef} tx={editing} onClose={() => setEditing(undefined)} />
+      <TransactionSheet
+        ref={sheetRef}
+        tx={editing}
+        onClose={() => setEditing(undefined)}
+        onCreated={(date) => setCreatedMonth({ year: date.getFullYear(), month: date.getMonth() + 1 })}
+      />
     </TransactionSheetContext.Provider>
   )
 }
