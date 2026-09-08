@@ -45,6 +45,8 @@ jest.mock('lucide-react-native', () => ({
   LayoutDashboard: () => null,
 }))
 
+jest.mock('#/lib/category-icons', () => ({ CATEGORY_ICONS: {} }))
+
 const FIXTURE = {
   totalBalance: 2395,
   hasWallets: true,

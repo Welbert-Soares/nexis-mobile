@@ -9,6 +9,7 @@ import { dashboardQuery } from '#/api/dashboard'
 import { useAuthSession } from '#/auth/session'
 import { fmtBRL, fmtDate } from '#/lib/format'
 import { colors } from '#/theme/colors'
+import { CATEGORY_ICONS } from '#/lib/category-icons'
 import type { DashboardData } from '#/schemas/dashboard'
 
 type RecentTx = DashboardData['recent'][number]
@@ -131,6 +132,7 @@ function TxRow({ tx }: { tx: RecentTx }) {
   const isExpense = tx.type === 'EXPENSE'
   const label = tx.description ?? tx.category?.name ?? 'Sem descrição'
   const color = tx.category?.color ?? tx.wallet.color ?? colors.muted
+  const CategoryIcon = tx.category?.icon ? CATEGORY_ICONS[tx.category.icon] : null
 
   return (
     <View className="flex-row items-center gap-3 rounded-xl px-1 py-2.5">
@@ -138,7 +140,11 @@ function TxRow({ tx }: { tx: RecentTx }) {
         className="h-8 w-8 shrink-0 items-center justify-center rounded-xl"
         style={{ backgroundColor: `${color}20` }}
       >
-        <View className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
+        {CategoryIcon ? (
+          <CategoryIcon size={16} color={color} strokeWidth={1.75} />
+        ) : (
+          <View className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
+        )}
       </View>
       <View className="min-w-0 flex-1">
         <Text numberOfLines={1} className="text-sm text-fg">
