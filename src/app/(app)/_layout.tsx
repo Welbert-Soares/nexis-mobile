@@ -1,13 +1,33 @@
+import { useEffect } from 'react'
 import { Redirect, Tabs } from 'expo-router'
+import { useQueryClient } from '@tanstack/react-query'
 import { ArrowLeftRight, LayoutDashboard, Wallet } from 'lucide-react-native'
 
 import { useAuthSession } from '#/auth/session'
 import { colors } from '#/theme/colors'
+import { triggerRecurring } from '#/api/transactions'
 import { TransactionSheetProvider } from '#/components/transactions/transaction-sheet-context'
 import { FabTabButton } from '#/components/layout/fab'
 
 export default function AppLayout() {
   const { session } = useAuthSession()
+  const qc = useQueryClient()
+
+  // Gera as ocorrências recorrentes vencidas ao entrar no app (o PWA faz o
+  // mesmo no mount do layout autenticado). Só invalida se algo foi lançado.
+  useEffect(() => {
+    if (!session) return
+    triggerRecurring()
+      .then((count) => {
+        if (count > 0) {
+          qc.invalidateQueries({ queryKey: ['transactions'] })
+          qc.invalidateQueries({ queryKey: ['transactions-max-date'] })
+          qc.invalidateQueries({ queryKey: ['wallets'] })
+          qc.invalidateQueries({ queryKey: ['dashboard'] })
+        }
+      })
+      .catch(() => {})
+  }, [session, qc])
 
   if (!session) return <Redirect href="/login" />
 
