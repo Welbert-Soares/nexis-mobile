@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { Pressable } from 'react-native'
 import { Redirect, Tabs } from 'expo-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { ArrowLeftRight, ChartColumnBig, LayoutDashboard, Wallet } from 'lucide-react-native'
@@ -40,6 +41,12 @@ export default function AppLayout() {
           tabBarActiveTintColor: colors.accent,
           tabBarInactiveTintColor: colors.muted,
           sceneStyle: { backgroundColor: colors.bg },
+          // O bottom-tabs v7 alinha ícone+rótulo ao topo do slot
+          // (`justifyContent: 'flex-start'`) — centraliza verticalmente.
+          tabBarButton: (props) => (
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            <Pressable {...(props as any)} style={[props.style, { justifyContent: 'center' }]} />
+          ),
         }}
       >
         <Tabs.Screen
@@ -61,7 +68,7 @@ export default function AppLayout() {
           name="new"
           options={{
             title: '',
-            tabBarButton: () => <FabTabButton />,
+            tabBarButton: (props) => <FabTabButton {...props} />,
           }}
         />
         <Tabs.Screen
