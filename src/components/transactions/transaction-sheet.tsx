@@ -260,6 +260,7 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
                 <DateTimePicker
                   value={date}
                   mode="date"
+                  locale="pt-BR"
                   maximumDate={new Date()}
                   onChange={(event, selected) => {
                     setShowDatePicker(false)
@@ -305,6 +306,7 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
                         value={date}
                         mode="date"
                         display="inline"
+                        locale="pt-BR"
                         maximumDate={new Date()}
                         themeVariant="dark"
                         accentColor={colors.accent}
