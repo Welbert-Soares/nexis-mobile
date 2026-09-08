@@ -1,6 +1,6 @@
+import { Pressable, View } from 'react-native'
 import { Plus } from 'lucide-react-native'
 
-import { View, Pressable } from '#/tw'
 import { colors } from '#/theme/colors'
 import { useTransactionSheet } from '#/components/transactions/transaction-sheet-context'
 
@@ -8,28 +8,29 @@ import { useTransactionSheet } from '#/components/transactions/transaction-sheet
  * Botão central "+" da tab bar (via `tabBarButton` da rota fantasma `new`).
  * Não navega — abre o sheet de nova transação pelo TransactionSheetProvider.
  *
- * Reaproveita o `style` que o navegador passa pro slot (mesmo flex/tamanho das
- * outras abas) e só força o centro — assim o "+" fica alinhado com os outros
- * ícones e dentro da barra, sem margem negativa cruzando a linha do topo.
+ * Usa os primitivos crus do `react-native` (mesmo caminho do tabBarButton
+ * global do _layout, que funciona). O `#/tw` Pressable, com todos os props que
+ * o navegador injeta no slot, engolia o toque.
  */
-export function FabTabButton(props: { style?: unknown }) {
+export function FabTabButton({ style }: { style?: unknown }) {
   const { openNew } = useTransactionSheet()
 
   return (
     <Pressable
-      {...props}
       onPress={openNew}
       accessibilityRole="button"
       accessibilityLabel="Nova transação"
       testID="fab-new-transaction"
-      style={[props.style as never, { flex: 1, alignItems: 'center', justifyContent: 'center' }]}
+      style={[style as never, { flex: 1, alignItems: 'center', justifyContent: 'center' }]}
     >
       <View
-        className="items-center justify-center rounded-full active:opacity-80"
         style={{
           height: 40,
           width: 40,
+          borderRadius: 20,
           backgroundColor: colors.accent,
+          alignItems: 'center',
+          justifyContent: 'center',
           shadowColor: '#000',
           shadowOpacity: 0.3,
           shadowRadius: 6,
