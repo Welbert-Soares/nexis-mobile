@@ -7,7 +7,7 @@ import { Calendar, Check, Trash2 } from 'lucide-react-native'
 
 import { View, Text, Pressable, ScrollView } from '#/tw'
 import { Sheet, SheetRef, BottomSheetScrollView, BottomSheetTextInput } from '#/components/ui/sheet'
-import { SheetField, inputStyle } from '#/components/ui/sheet-field'
+import { SheetField } from '#/components/ui/sheet-field'
 import { CurrencyInput } from '#/components/ui/currency-input'
 import { CATEGORY_ICONS } from '#/lib/category-icons'
 import { fmtDate, toYMD } from '#/lib/format'
@@ -242,27 +242,44 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
               />
             </View>
 
-            {/* Data */}
-            <View className="gap-2">
+            {/* Data — controle nativo único (sem trigger custom em cima do picker) */}
+            <View className="flex-row items-center justify-between">
               <Text className="text-xs text-muted">Data</Text>
-              <Pressable
-                onPress={() => setShowDatePicker(true)}
-                className="flex-row items-center justify-between"
-                style={inputStyle}
-              >
-                <Text className="text-sm capitalize text-fg">{fmtDate(date)}</Text>
-                <Calendar size={16} color={colors.muted} />
-              </Pressable>
-              {showDatePicker && (
+              {Platform.OS === 'ios' ? (
                 <DateTimePicker
                   value={date}
                   mode="date"
+                  display="compact"
                   maximumDate={new Date()}
-                  onChange={(event, selected) => {
-                    setShowDatePicker(Platform.OS === 'ios')
-                    if (event.type === 'set' && selected) setDate(selected)
+                  themeVariant="dark"
+                  accentColor={colors.accent}
+                  onChange={(_, selected) => {
+                    if (selected) setDate(selected)
                   }}
+                  style={{ marginRight: -8 }}
                 />
+              ) : (
+                <>
+                  <Pressable
+                    onPress={() => setShowDatePicker(true)}
+                    className="flex-row items-center gap-2 rounded-lg px-3 py-2"
+                    style={{ backgroundColor: colors.border }}
+                  >
+                    <Calendar size={14} color={colors.muted} />
+                    <Text className="text-sm capitalize text-fg">{fmtDate(date)}</Text>
+                  </Pressable>
+                  {showDatePicker && (
+                    <DateTimePicker
+                      value={date}
+                      mode="date"
+                      maximumDate={new Date()}
+                      onChange={(event, selected) => {
+                        setShowDatePicker(false)
+                        if (event.type === 'set' && selected) setDate(selected)
+                      }}
+                    />
+                  )}
+                </>
               )}
             </View>
 
