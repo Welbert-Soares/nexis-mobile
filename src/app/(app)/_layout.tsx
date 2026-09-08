@@ -80,7 +80,7 @@ export default function AppLayout() {
           name="new"
           options={{
             title: '',
-            tabBarButton: (props) => <FabTabButton {...props} />,
+            tabBarButton: ({ style }) => <FabTabButton style={style} />,
           }}
         />
         <Tabs.Screen
