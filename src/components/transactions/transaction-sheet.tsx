@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useState } from 'react'
-import { Platform } from 'react-native'
+import { Modal, Platform } from 'react-native'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { router } from 'expo-router'
@@ -7,7 +7,7 @@ import { Calendar, Check, Trash2 } from 'lucide-react-native'
 
 import { View, Text, Pressable, ScrollView } from '#/tw'
 import { Sheet, SheetRef, BottomSheetScrollView, BottomSheetTextInput } from '#/components/ui/sheet'
-import { SheetField } from '#/components/ui/sheet-field'
+import { SheetField, inputStyle } from '#/components/ui/sheet-field'
 import { CurrencyInput } from '#/components/ui/currency-input'
 import { CATEGORY_ICONS } from '#/lib/category-icons'
 import { fmtDate, toYMD } from '#/lib/format'
@@ -242,44 +242,87 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
               />
             </View>
 
-            {/* Data — controle nativo único (sem trigger custom em cima do picker) */}
-            <View className="flex-row items-center justify-between">
+            {/* Data — mesmo layout dos outros campos: label + surface full-width.
+                O toque abre o calendário nativo (modal no iOS, dialog no Android). */}
+            <View className="gap-2">
               <Text className="text-xs text-muted">Data</Text>
-              {Platform.OS === 'ios' ? (
+              <Pressable
+                onPress={() => setShowDatePicker(true)}
+                className="flex-row items-center justify-between"
+                style={inputStyle}
+              >
+                <Text className="text-sm capitalize text-fg">{fmtDate(date)}</Text>
+                <Calendar size={16} color={colors.muted} />
+              </Pressable>
+
+              {/* Android: o picker É o próprio dialog nativo (portal), sem wrapper. */}
+              {Platform.OS === 'android' && showDatePicker && (
                 <DateTimePicker
                   value={date}
                   mode="date"
-                  display="compact"
                   maximumDate={new Date()}
-                  themeVariant="dark"
-                  accentColor={colors.accent}
-                  onChange={(_, selected) => {
-                    if (selected) setDate(selected)
+                  onChange={(event, selected) => {
+                    setShowDatePicker(false)
+                    if (event.type === 'set' && selected) setDate(selected)
                   }}
-                  style={{ marginRight: -8 }}
                 />
-              ) : (
-                <>
-                  <Pressable
-                    onPress={() => setShowDatePicker(true)}
-                    className="flex-row items-center gap-2 rounded-lg px-3 py-2"
-                    style={{ backgroundColor: colors.border }}
+              )}
+
+              {/* iOS: calendário inline num modal centralizado — mesmo padrão do
+                  picker De/Para do transfer-sheet (card colors.card, título accent). */}
+              {Platform.OS === 'ios' && (
+                <Modal
+                  visible={showDatePicker}
+                  transparent
+                  animationType="fade"
+                  onRequestClose={() => setShowDatePicker(false)}
+                >
+                  <View
+                    style={{
+                      flex: 1,
+                      backgroundColor: 'rgba(0,0,0,0.55)',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      padding: 24,
+                    }}
                   >
-                    <Calendar size={14} color={colors.muted} />
-                    <Text className="text-sm capitalize text-fg">{fmtDate(date)}</Text>
-                  </Pressable>
-                  {showDatePicker && (
-                    <DateTimePicker
-                      value={date}
-                      mode="date"
-                      maximumDate={new Date()}
-                      onChange={(event, selected) => {
-                        setShowDatePicker(false)
-                        if (event.type === 'set' && selected) setDate(selected)
-                      }}
+                    <Pressable
+                      onPress={() => setShowDatePicker(false)}
+                      style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
                     />
-                  )}
-                </>
+                    <View
+                      className="overflow-hidden rounded-2xl"
+                      style={{ backgroundColor: colors.card, width: '100%', maxWidth: 360 }}
+                    >
+                      <Text
+                        className="px-4 pb-2.5 pt-3 text-sm font-semibold"
+                        style={{ color: colors.accent }}
+                      >
+                        Data da transação
+                      </Text>
+                      <View style={{ height: 1, backgroundColor: colors.border }} />
+                      <DateTimePicker
+                        value={date}
+                        mode="date"
+                        display="inline"
+                        maximumDate={new Date()}
+                        themeVariant="dark"
+                        accentColor={colors.accent}
+                        onChange={(event, selected) => {
+                          if (event.type === 'set' && selected) setDate(selected)
+                        }}
+                        style={{ alignSelf: 'center' }}
+                      />
+                      <Pressable
+                        onPress={() => setShowDatePicker(false)}
+                        className="m-3 rounded-xl py-3 active:opacity-80"
+                        style={{ backgroundColor: colors.accent }}
+                      >
+                        <Text className="text-center text-sm font-semibold text-white">Concluir</Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                </Modal>
               )}
             </View>
 
