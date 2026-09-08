@@ -102,4 +102,23 @@ describe('TransactionSheet', () => {
     expect(getByText('Excluir esta transação?')).toBeTruthy()
     expect(getByText('Excluir')).toBeTruthy()
   })
+
+  it('criação (EXPENSE) mostra Repetir e Parcelar', () => {
+    const { getByText } = wrap(<TransactionSheet ref={createRef<SheetRef>()} />)
+    expect(getByText('Repetir')).toBeTruthy()
+    expect(getByText('Parcelar')).toBeTruthy()
+  })
+
+  it('criação com tipo INCOME não mostra Parcelar', () => {
+    const { getByText, queryByText } = wrap(<TransactionSheet ref={createRef<SheetRef>()} />)
+    fireEvent.press(getByText('Receita'))
+    expect(getByText('Repetir')).toBeTruthy()
+    expect(queryByText('Parcelar')).toBeNull()
+  })
+
+  it('edição não mostra Repetir nem Parcelar', () => {
+    const { queryByText } = wrap(<TransactionSheet ref={createRef<SheetRef>()} tx={TX} />)
+    expect(queryByText('Repetir')).toBeNull()
+    expect(queryByText('Parcelar')).toBeNull()
+  })
 })

@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useRef, useState } from 'react'
-import { Animated, Modal, Platform } from 'react-native'
+import { Animated, Modal, Platform, Switch } from 'react-native'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { router } from 'expo-router'
@@ -10,7 +10,7 @@ import { Sheet, SheetRef, BottomSheetScrollView, BottomSheetTextInput } from '#/
 import { SheetField, inputStyle } from '#/components/ui/sheet-field'
 import { CurrencyInput } from '#/components/ui/currency-input'
 import { CATEGORY_ICONS } from '#/lib/category-icons'
-import { fmtDate, toYMD } from '#/lib/format'
+import { fmtBRL, fmtDate, tabularNums, toYMD } from '#/lib/format'
 import { colors } from '#/theme/colors'
 import { walletsQuery } from '#/api/wallets'
 import { categoriesQuery } from '#/api/categories'
@@ -18,6 +18,18 @@ import { createTransaction, editTransaction, deleteTransaction } from '#/api/tra
 import type { Transaction, TransactionType } from '#/schemas/transaction'
 
 type TxType = TransactionType
+
+type Interval = 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY' | 'YEARLY'
+
+const INTERVALS: { value: Interval; label: string }[] = [
+  { value: 'WEEKLY', label: 'Semanal' },
+  { value: 'BIWEEKLY', label: 'Quinzenal' },
+  { value: 'MONTHLY', label: 'Mensal' },
+  { value: 'YEARLY', label: 'Anual' },
+]
+
+const MIN_INSTALLMENTS = 2
+const MAX_INSTALLMENTS = 24
 
 type Props = { tx?: Transaction; onClose?: () => void; onCreated?: (date: Date) => void }
 
@@ -37,6 +49,10 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
   const [saved, setSaved] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [showDatePicker, setShowDatePicker] = useState(false)
+  const [recurring, setRecurring] = useState(false)
+  const [interval, setInterval] = useState<Interval>('MONTHLY')
+  const [parceling, setParceling] = useState(false)
+  const [installments, setInstallments] = useState(MIN_INSTALLMENTS)
   // Qual chip está aberto (mostrando o nome). Abre ao tocar; recolhe pra só o
   // ícone quando o usuário toca em qualquer outro lugar do formulário.
   const [expandedCatId, setExpandedCatId] = useState<string | null>(null)
@@ -61,6 +77,10 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
     setShowDatePicker(false)
     setExpandedCatId(null)
     setExpandedWalletId(null)
+    setRecurring(false)
+    setInterval('MONTHLY')
+    setParceling(false)
+    setInstallments(MIN_INSTALLMENTS)
   }
 
   useEffect(() => {
@@ -100,6 +120,9 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
             categoryId: categoryId ?? undefined,
             description: description.trim() || undefined,
             date: dateStr,
+            recurring: recurring || undefined,
+            interval: recurring ? interval : undefined,
+            installments: parceling ? installments : undefined,
           })
     },
     onSuccess: () => {
@@ -212,7 +235,11 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
               <Check size={28} color={colors.positive} strokeWidth={2.5} />
             </View>
             <Text className="text-sm font-medium text-muted">
-              {isEdit ? 'Transação atualizada' : 'Transação salva'}
+              {parceling
+                ? `${installments} parcelas criadas`
+                : isEdit
+                  ? 'Transação atualizada'
+                  : 'Transação salva'}
             </Text>
           </View>
         ) : (
@@ -236,6 +263,7 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
                       collapseChips()
                       setType(opt.value)
                       setCategoryId(null)
+                      if (opt.value === 'INCOME') setParceling(false)
                     }}
                     className="flex-1 rounded-lg py-2"
                     style={{ backgroundColor: on ? `${opt.tone}26` : 'transparent' }}
@@ -419,6 +447,106 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
               onChangeText={setDescription}
               onFocus={collapseChips}
             />
+
+            {/* Repetir / Parcelar — só na criação */}
+            {!isEdit && (
+              <View className="gap-3">
+                <View className="flex-row items-center justify-between">
+                  <Text className="text-sm text-fg">Repetir</Text>
+                  <Switch
+                    value={recurring}
+                    onValueChange={(v) => {
+                      collapseChips()
+                      setRecurring(v)
+                      if (v) setParceling(false)
+                    }}
+                    trackColor={{ true: colors.accent, false: colors.border }}
+                    thumbColor={colors.fg}
+                  />
+                </View>
+                {recurring && (
+                  <View className="flex-row flex-wrap gap-2">
+                    {INTERVALS.map((it) => {
+                      const on = interval === it.value
+                      return (
+                        <Pressable
+                          key={it.value}
+                          onPress={() => setInterval(it.value)}
+                          className="rounded-full px-3 py-1.5"
+                          style={{ backgroundColor: on ? colors.fg : colors.border }}
+                        >
+                          <Text
+                            className="text-xs font-medium"
+                            style={{ color: on ? colors.bg : colors.muted }}
+                          >
+                            {it.label}
+                          </Text>
+                        </Pressable>
+                      )
+                    })}
+                  </View>
+                )}
+
+                {type === 'EXPENSE' && (
+                  <>
+                    <View className="flex-row items-center justify-between">
+                      <Text className="text-sm text-fg">Parcelar</Text>
+                      <Switch
+                        value={parceling}
+                        onValueChange={(v) => {
+                          collapseChips()
+                          setParceling(v)
+                          if (v) setRecurring(false)
+                        }}
+                        trackColor={{ true: colors.accent, false: colors.border }}
+                        thumbColor={colors.fg}
+                      />
+                    </View>
+                    {parceling && (
+                      <View className="gap-1.5">
+                        <View className="flex-row items-center justify-center gap-6">
+                          <Pressable
+                            onPress={() =>
+                              setInstallments((n) => Math.max(MIN_INSTALLMENTS, n - 1))
+                            }
+                            disabled={installments <= MIN_INSTALLMENTS}
+                            className="h-9 w-9 items-center justify-center rounded-full"
+                            style={{
+                              backgroundColor: colors.border,
+                              opacity: installments <= MIN_INSTALLMENTS ? 0.4 : 1,
+                            }}
+                          >
+                            <Text className="text-lg text-fg">−</Text>
+                          </Pressable>
+                          <Text
+                            className="text-lg font-semibold text-fg"
+                            style={tabularNums}
+                          >
+                            {installments}x
+                          </Text>
+                          <Pressable
+                            onPress={() =>
+                              setInstallments((n) => Math.min(MAX_INSTALLMENTS, n + 1))
+                            }
+                            disabled={installments >= MAX_INSTALLMENTS}
+                            className="h-9 w-9 items-center justify-center rounded-full"
+                            style={{
+                              backgroundColor: colors.border,
+                              opacity: installments >= MAX_INSTALLMENTS ? 0.4 : 1,
+                            }}
+                          >
+                            <Text className="text-lg text-fg">＋</Text>
+                          </Pressable>
+                        </View>
+                        <Text className="text-center text-xs text-muted">
+                          de {fmtBRL(cents / 100 / installments)} cada
+                        </Text>
+                      </View>
+                    )}
+                  </>
+                )}
+              </View>
+            )}
 
             {save.isError && (
               <Text className="text-center text-xs" style={{ color: colors.negative }}>
