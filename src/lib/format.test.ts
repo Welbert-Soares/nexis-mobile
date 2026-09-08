@@ -1,4 +1,4 @@
-import { fmtBRL, fmtDate } from './format'
+import { fmtBRL, fmtDate, fmtMonthKeyShort, fmtBudgetMonth } from './format'
 
 // fmtBRL normalizes the ICU narrow/no-break space to a plain ASCII space,
 // so these literals use a regular space on purpose.
@@ -21,5 +21,20 @@ describe('fmtDate', () => {
   it('dia e mes abreviado pt-BR', () => {
     // 2026-09-03 -> "03 de set."
     expect(fmtDate(new Date(2026, 8, 3))).toMatch(/03 de set/)
+  })
+})
+
+describe('fmtMonthKeyShort', () => {
+  it('mapeia a chave YYYY-MM pro rotulo curto', () => {
+    expect(fmtMonthKeyShort('2026-09')).toBe('set')
+    expect(fmtMonthKeyShort('2026-01')).toBe('jan')
+    expect(fmtMonthKeyShort('2026-12')).toBe('dez')
+  })
+})
+
+describe('fmtBudgetMonth', () => {
+  it('mes curto + ano de 2 digitos', () => {
+    expect(fmtBudgetMonth(2025, 9)).toBe('set/25')
+    expect(fmtBudgetMonth(2026, 1)).toBe('jan/26')
   })
 })
