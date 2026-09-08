@@ -51,3 +51,14 @@ export function fmtDayGroup(date: Date): string {
   const mm = MONTHS_SHORT[date.getMonth()]
   return `${wd}, ${dd} ${mm}`
 }
+
+/** `'YYYY-MM'` → rótulo curto do mês (`'set'`). Tabela fixa, sem Intl. */
+export function fmtMonthKeyShort(key: string): string {
+  const m = Number(key.split('-')[1])
+  return MONTHS_SHORT[m - 1] ?? key
+}
+
+/** `(2025, 9)` → `'set/25'` — rótulo da navegação de mês dos orçamentos. */
+export function fmtBudgetMonth(year: number, month: number): string {
+  return `${MONTHS_SHORT[month - 1]}/${String(year).slice(-2)}`
+}
