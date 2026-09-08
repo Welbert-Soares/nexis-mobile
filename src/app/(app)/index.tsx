@@ -36,6 +36,8 @@ export default function Dashboard() {
           refreshing={isFetching && !isLoading}
           onRefresh={() => qc.invalidateQueries({ queryKey: ['dashboard'] })}
           tintColor={colors.muted}
+          colors={[colors.muted]}
+          progressViewOffset={insets.top + 8}
         />
       }
     >
