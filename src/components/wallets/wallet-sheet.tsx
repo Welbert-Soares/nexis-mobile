@@ -1,10 +1,11 @@
 import { forwardRef, useEffect, useRef, useState } from 'react'
-import { Animated, type TextInputProps } from 'react-native'
+import { Animated } from 'react-native'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Check, Trash2 } from 'lucide-react-native'
 
 import { View, Text, Pressable } from '#/tw'
 import { Sheet, SheetRef, BottomSheetScrollView, BottomSheetTextInput } from '#/components/ui/sheet'
+import { SheetField } from '#/components/ui/sheet-field'
 import { CurrencyInput } from '#/components/ui/currency-input'
 import { CATEGORY_ICONS } from '#/lib/category-icons'
 import { WALLET_TYPES, WALLET_COLORS, type WalletType } from '#/lib/wallet-meta'
@@ -51,40 +52,6 @@ function IconCell({
         <Icon size={18} color={selected ? tint : colors.muted} strokeWidth={1.75} />
       </Pressable>
     </View>
-  )
-}
-
-const inputStyle = {
-  borderRadius: 12,
-  backgroundColor: colors.border,
-  color: colors.fg,
-  paddingHorizontal: 16,
-  paddingVertical: 12,
-  fontSize: 14,
-  // borda sempre presente (transparente) pra o foco não empurrar o layout
-  borderWidth: 1,
-  borderColor: 'transparent',
-} as const
-
-/**
- * TextInput do sheet com indicador de foco (o RN não tem `:focus` de CSS).
- * Borda neutra ao focar, como o `focus:ring` do PWA.
- */
-function SheetField({ style, onFocus, onBlur, ...props }: TextInputProps) {
-  const [focused, setFocused] = useState(false)
-  return (
-    <BottomSheetTextInput
-      {...props}
-      onFocus={(e) => {
-        setFocused(true)
-        onFocus?.(e)
-      }}
-      onBlur={(e) => {
-        setFocused(false)
-        onBlur?.(e)
-      }}
-      style={[inputStyle, focused && { borderColor: colors.muted }, style]}
-    />
   )
 }
 
