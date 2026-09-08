@@ -17,6 +17,10 @@ jest.mock('#/api/dashboard', () => ({
   dashboardQuery: { queryKey: ['dashboard'], queryFn: jest.fn(), staleTime: Infinity },
 }))
 
+// O ProfileSheet (avatar do header) puxa @gorhom/bottom-sheet → reanimated,
+// que não sobe no jest. A tela só monta o sheet; não interessa aqui.
+jest.mock('#/components/profile/profile-sheet', () => ({ ProfileSheet: () => null }))
+
 jest.mock('expo-router', () => ({
   Link: ({ children }: { children: React.ReactNode }) => children,
   useFocusEffect: () => {},
