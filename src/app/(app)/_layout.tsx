@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { Pressable } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Redirect, Tabs } from 'expo-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { ArrowLeftRight, ChartColumnBig, LayoutDashboard, Wallet } from 'lucide-react-native'
@@ -13,6 +14,7 @@ import { FabTabButton } from '#/components/layout/fab'
 export default function AppLayout() {
   const { session } = useAuthSession()
   const qc = useQueryClient()
+  const insets = useSafeAreaInsets()
 
   // Gera as ocorrências recorrentes vencidas ao entrar no app (o PWA faz o
   // mesmo no mount do layout autenticado). Só invalida se algo foi lançado.
@@ -37,13 +39,21 @@ export default function AppLayout() {
       <Tabs
         screenOptions={{
           headerShown: false,
-          tabBarStyle: { backgroundColor: colors.bg, borderTopColor: colors.border },
+          // Altura explícita da faixa de conteúdo (46) + só o safe-area embaixo.
+          // O default do bottom-tabs v7 dava uma sobra vertical na faixa.
+          tabBarStyle: {
+            backgroundColor: colors.bg,
+            borderTopColor: colors.border,
+            height: 46 + insets.bottom,
+            paddingTop: 0,
+            paddingBottom: insets.bottom,
+          },
           tabBarActiveTintColor: colors.accent,
           tabBarInactiveTintColor: colors.muted,
+          tabBarLabelStyle: { fontSize: 10 },
           sceneStyle: { backgroundColor: colors.bg },
-          // No bottom-tabs v7 o botão do slot fica com o tamanho do conteúdo
-          // (sem flex) e o wrapper alinha ao topo → ícones colados em cima com
-          // sobra embaixo. Centralizar o wrapper + o próprio botão resolve.
+          // No bottom-tabs v7 o conteúdo do slot alinha ao topo
+          // (`justifyContent: 'flex-start'`) — centraliza vertical.
           tabBarItemStyle: { justifyContent: 'center' },
           tabBarButton: (props) => (
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
