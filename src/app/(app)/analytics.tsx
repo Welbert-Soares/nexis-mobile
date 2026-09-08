@@ -15,6 +15,7 @@ import { CategoryBreakdown } from '#/components/analytics/category-breakdown'
 import { AnalyticsSkeleton } from '#/components/analytics/analytics-skeleton'
 import { BudgetsSection } from '#/components/budgets/budgets-section'
 import { BudgetSheet, type EditableBudget } from '#/components/budgets/budget-sheet'
+import { GoalsPreview } from '#/components/goals/goals-preview'
 import type { SheetRef } from '#/components/ui/sheet'
 import type { Budget } from '#/schemas/budget'
 
@@ -42,6 +43,7 @@ export default function AnalyticsScreen() {
     useCallback(() => {
       qc.invalidateQueries({ queryKey: ['analytics'] })
       qc.invalidateQueries({ queryKey: ['budgets'] })
+      qc.invalidateQueries({ queryKey: ['goals'] })
     }, [qc]),
   )
 
@@ -94,6 +96,7 @@ export default function AnalyticsScreen() {
             onRefresh={() => {
               qc.invalidateQueries({ queryKey: ['analytics'] })
               qc.invalidateQueries({ queryKey: ['budgets'] })
+              qc.invalidateQueries({ queryKey: ['goals'] })
             }}
             progressViewOffset={insets.top + 8}
             tintColor={colors.muted}
@@ -138,6 +141,8 @@ export default function AnalyticsScreen() {
                 <CategoryBreakdown items={data.categoryBreakdown} />
               </Section>
             )}
+
+            <GoalsPreview />
 
             <BudgetsSection
               year={budgetYear}

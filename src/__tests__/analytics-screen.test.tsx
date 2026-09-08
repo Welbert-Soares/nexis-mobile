@@ -11,9 +11,12 @@ jest.mock('#/tw', () => {
   return { View: RN.View, Text: RN.Text, ScrollView: RN.ScrollView, Pressable: RN.Pressable }
 })
 jest.mock('lucide-react-native', () => new Proxy({}, { get: () => () => null }))
-jest.mock('expo-router', () => ({ useFocusEffect: () => {} }))
+jest.mock('expo-router', () => ({ useFocusEffect: () => {}, useRouter: () => ({ push: jest.fn(), back: jest.fn() }) }))
 jest.mock('react-native-gifted-charts', () => ({ BarChart: () => null, PieChart: () => null }))
 jest.mock('#/components/budgets/budget-sheet', () => ({ BudgetSheet: () => null }))
+jest.mock('#/api/goals', () => ({
+  goalsQuery: { queryKey: ['goals'], queryFn: jest.fn(), staleTime: Infinity },
+}))
 jest.mock('#/api/analytics', () => ({
   analyticsQuery: { queryKey: ['analytics'], queryFn: jest.fn(), staleTime: Infinity },
 }))
@@ -51,6 +54,7 @@ function renderWith(analytics: unknown, budgets: unknown) {
   })
   if (analytics !== undefined) qc.setQueryData(['analytics'], analytics)
   qc.setQueryData(['budgets', Y, M], budgets)
+  qc.setQueryData(['goals'], [])
   return render(
     <QueryClientProvider client={qc}>
       <AnalyticsScreen />
@@ -59,12 +63,14 @@ function renderWith(analytics: unknown, budgets: unknown) {
 }
 
 describe('AnalyticsScreen', () => {
-  it('com receita > 0 monta as 5 seções', () => {
+  it('com receita > 0 monta as seções (incl. Metas e Orçamentos)', () => {
     const { getByText } = renderWith(FULL, [])
     expect(getByText('Resumo do mês')).toBeTruthy()
     expect(getByText('Ritmo do mês')).toBeTruthy()
     expect(getByText('Últimos 6 meses')).toBeTruthy()
     expect(getByText('Gastos por categoria')).toBeTruthy()
+    expect(getByText('Metas')).toBeTruthy()
+    expect(getByText('Nenhuma meta ainda')).toBeTruthy()
     expect(getByText('Orçamentos')).toBeTruthy()
   })
 
