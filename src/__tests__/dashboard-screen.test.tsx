@@ -1,7 +1,9 @@
 import { render } from '@testing-library/react-native'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
-import Dashboard from './index'
+// Fora de src/app/ de proposito: o require.context do expo-router empacota
+// qualquer .tsx sob src/app/ como rota, inclusive arquivos de teste.
+import Dashboard from '#/app/(app)/index'
 
 jest.mock('#/auth/session', () => ({
   useAuthSession: () => ({
