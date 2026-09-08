@@ -1,5 +1,7 @@
+import { useCallback } from 'react'
 import { RefreshControl } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useFocusEffect } from 'expo-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowRight, TrendingDown, TrendingUp, Wallet } from 'lucide-react-native'
 
@@ -19,6 +21,14 @@ export default function Dashboard() {
   const qc = useQueryClient()
   const insets = useSafeAreaInsets()
   const { data, isLoading, isFetching } = useQuery(dashboardQuery)
+
+  // Recarrega ao focar a aba — mutações de transação/carteira em outra aba
+  // invalidam ['dashboard'], mas o refetch só é garantido ao voltar pra cá.
+  useFocusEffect(
+    useCallback(() => {
+      qc.invalidateQueries({ queryKey: ['dashboard'] })
+    }, [qc]),
+  )
 
   const firstName = session?.user?.name?.split(' ')[0] ?? ''
   const cold = isLoading && !data

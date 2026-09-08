@@ -12,6 +12,7 @@ jest.mock('#/tw', () => {
 })
 jest.mock('lucide-react-native', () => new Proxy({}, { get: () => () => null }))
 jest.mock('#/lib/category-icons', () => ({ CATEGORY_ICONS: {} }))
+jest.mock('expo-router', () => ({ useFocusEffect: () => {} }))
 jest.mock('#/api/transactions', () => ({
   monthTransactionsQuery: (y: number, m: number) => ({
     queryKey: ['transactions', y, m],
@@ -20,7 +21,12 @@ jest.mock('#/api/transactions', () => ({
   }),
 }))
 jest.mock('#/components/transactions/transaction-sheet-context', () => ({
-  useTransactionSheet: () => ({ openNew: jest.fn(), openEdit: jest.fn() }),
+  useTransactionSheet: () => ({
+    openNew: jest.fn(),
+    openEdit: jest.fn(),
+    createdMonth: null,
+    consumeCreatedMonth: jest.fn(),
+  }),
 }))
 
 const now = new Date()

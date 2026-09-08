@@ -1,9 +1,9 @@
-import { forwardRef, useEffect, useState } from 'react'
-import { Platform } from 'react-native'
+import { forwardRef, useEffect, useRef, useState } from 'react'
+import { Animated, Modal, Platform } from 'react-native'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { router } from 'expo-router'
-import { Calendar, Check, Trash2 } from 'lucide-react-native'
+import { Calendar, Check, Trash2, Wallet, type LucideIcon } from 'lucide-react-native'
 
 import { View, Text, Pressable, ScrollView } from '#/tw'
 import { Sheet, SheetRef, BottomSheetScrollView, BottomSheetTextInput } from '#/components/ui/sheet'
@@ -16,14 +16,13 @@ import { walletsQuery } from '#/api/wallets'
 import { categoriesQuery } from '#/api/categories'
 import { createTransaction, editTransaction, deleteTransaction } from '#/api/transactions'
 import type { Transaction, TransactionType } from '#/schemas/transaction'
-import type { Category } from '#/schemas/category'
 
 type TxType = TransactionType
 
-type Props = { tx?: Transaction; onClose?: () => void }
+type Props = { tx?: Transaction; onClose?: () => void; onCreated?: (date: Date) => void }
 
 export const TransactionSheet = forwardRef<SheetRef, Props>(function TransactionSheet(
-  { tx, onClose },
+  { tx, onClose, onCreated },
   ref,
 ) {
   const isEdit = !!tx
@@ -38,6 +37,14 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
   const [saved, setSaved] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [showDatePicker, setShowDatePicker] = useState(false)
+  // Qual chip está aberto (mostrando o nome). Abre ao tocar; recolhe pra só o
+  // ícone quando o usuário toca em qualquer outro lugar do formulário.
+  const [expandedCatId, setExpandedCatId] = useState<string | null>(null)
+  const [expandedWalletId, setExpandedWalletId] = useState<string | null>(null)
+  const collapseChips = () => {
+    setExpandedCatId(null)
+    setExpandedWalletId(null)
+  }
 
   const { data: wallets = [] } = useQuery(walletsQuery)
   const { data: categories = [] } = useQuery(categoriesQuery(type))
@@ -52,6 +59,8 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
     setSaved(false)
     setConfirmDelete(false)
     setShowDatePicker(false)
+    setExpandedCatId(null)
+    setExpandedWalletId(null)
   }
 
   useEffect(() => {
@@ -95,6 +104,7 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
     },
     onSuccess: () => {
       invalidate()
+      if (!isEdit) onCreated?.(date)
       setSaved(true)
       setTimeout(() => (ref as React.RefObject<SheetRef>)?.current?.dismiss(), 900)
     },
@@ -129,7 +139,10 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
         onClose?.()
       }}
     >
-      <BottomSheetScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40, gap: 20 }}>
+      <BottomSheetScrollView
+        contentContainerStyle={{ padding: 20, paddingBottom: 40, gap: 20 }}
+        onScrollBeginDrag={collapseChips}
+      >
         <View className="flex-row items-center justify-between">
           <Text className="text-base font-semibold text-fg">
             {isEdit ? 'Editar transação' : 'Nova transação'}
@@ -137,7 +150,10 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
           {isEdit && !saved && (
             <Pressable
               testID="transaction-delete"
-              onPress={() => setConfirmDelete(true)}
+              onPress={() => {
+                collapseChips()
+                setConfirmDelete(true)
+              }}
               className="p-1 active:opacity-60"
             >
               <Trash2 size={16} color={colors.muted} />
@@ -200,7 +216,10 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
             </Text>
           </View>
         ) : (
-          <>
+          // Tocar em qualquer área "vazia" do formulário recolhe os chips
+          // abertos (fica só o ícone). Os campos internos (Pressables/inputs)
+          // capturam os próprios toques e não disparam este onPress.
+          <Pressable onPress={collapseChips} android_disableSound style={{ gap: 20 }}>
             {/* Tipo */}
             <View className="flex-row rounded-xl p-1" style={{ backgroundColor: colors.border }}>
               {(
@@ -214,6 +233,7 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
                   <Pressable
                     key={opt.value}
                     onPress={() => {
+                      collapseChips()
                       setType(opt.value)
                       setCategoryId(null)
                     }}
@@ -238,35 +258,101 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
                 cents={cents}
                 onChange={setCents}
                 autoFocus={!isEdit}
+                onFocus={collapseChips}
                 InputComponent={BottomSheetTextInput}
               />
             </View>
 
-            {/* Data */}
+            {/* Data — mesmo layout dos outros campos: label + surface full-width.
+                O toque abre o calendário nativo (modal no iOS, dialog no Android). */}
             <View className="gap-2">
               <Text className="text-xs text-muted">Data</Text>
               <Pressable
-                onPress={() => setShowDatePicker(true)}
+                onPress={() => {
+                  collapseChips()
+                  setShowDatePicker(true)
+                }}
                 className="flex-row items-center justify-between"
-                style={inputStyle}
+                style={[inputStyle, showDatePicker && { borderColor: colors.muted }]}
               >
                 <Text className="text-sm capitalize text-fg">{fmtDate(date)}</Text>
-                <Calendar size={16} color={colors.muted} />
+                <Calendar size={16} color={showDatePicker ? colors.fg : colors.muted} />
               </Pressable>
-              {showDatePicker && (
+
+              {/* Android: o picker É o próprio dialog nativo (portal), sem wrapper. */}
+              {Platform.OS === 'android' && showDatePicker && (
                 <DateTimePicker
                   value={date}
                   mode="date"
+                  locale="pt-BR"
                   maximumDate={new Date()}
                   onChange={(event, selected) => {
-                    setShowDatePicker(Platform.OS === 'ios')
+                    setShowDatePicker(false)
                     if (event.type === 'set' && selected) setDate(selected)
                   }}
                 />
               )}
+
+              {/* iOS: calendário inline num modal centralizado — mesmo padrão do
+                  picker De/Para do transfer-sheet (card colors.card, título accent). */}
+              {Platform.OS === 'ios' && (
+                <Modal
+                  visible={showDatePicker}
+                  transparent
+                  animationType="fade"
+                  onRequestClose={() => setShowDatePicker(false)}
+                >
+                  <View
+                    style={{
+                      flex: 1,
+                      backgroundColor: 'rgba(0,0,0,0.55)',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      padding: 24,
+                    }}
+                  >
+                    <Pressable
+                      onPress={() => setShowDatePicker(false)}
+                      style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+                    />
+                    <View
+                      className="overflow-hidden rounded-2xl"
+                      style={{ backgroundColor: colors.card, width: '100%', maxWidth: 360 }}
+                    >
+                      <Text
+                        className="px-4 pb-2.5 pt-3 text-sm font-semibold"
+                        style={{ color: colors.accent }}
+                      >
+                        Data da transação
+                      </Text>
+                      <View style={{ height: 1, backgroundColor: colors.border }} />
+                      <DateTimePicker
+                        value={date}
+                        mode="date"
+                        display="inline"
+                        locale="pt-BR"
+                        maximumDate={new Date()}
+                        themeVariant="dark"
+                        accentColor={colors.accent}
+                        onChange={(event, selected) => {
+                          if (event.type === 'set' && selected) setDate(selected)
+                        }}
+                        style={{ alignSelf: 'center' }}
+                      />
+                      <Pressable
+                        onPress={() => setShowDatePicker(false)}
+                        className="m-3 rounded-xl py-3 active:opacity-80"
+                        style={{ backgroundColor: colors.accent }}
+                      >
+                        <Text className="text-center text-sm font-semibold text-white">Concluir</Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                </Modal>
+              )}
             </View>
 
-            {/* Categoria */}
+            {/* Categoria — chip só com ícone; o selecionado abre e mostra o nome */}
             <View className="gap-2">
               <Text className="text-xs text-muted">Categoria</Text>
               <ScrollView
@@ -275,17 +361,29 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
                 contentContainerStyle={{ gap: 8, paddingRight: 4 }}
               >
                 {categories.map((c) => (
-                  <CategoryChip
+                  <Chip
                     key={c.id}
-                    category={c}
+                    icon={c.icon ? CATEGORY_ICONS[c.icon] : null}
+                    color={c.color ?? colors.muted}
+                    label={c.name}
                     selected={categoryId === c.id}
-                    onPress={() => setCategoryId(categoryId === c.id ? null : c.id)}
+                    expanded={expandedCatId === c.id}
+                    onPress={() => {
+                      setExpandedWalletId(null)
+                      if (categoryId === c.id) {
+                        setCategoryId(null)
+                        setExpandedCatId(null)
+                      } else {
+                        setCategoryId(c.id)
+                        setExpandedCatId(c.id)
+                      }
+                    }}
                   />
                 ))}
               </ScrollView>
             </View>
 
-            {/* Carteira */}
+            {/* Carteira — mesmo comportamento do chip de categoria */}
             {wallets.length > 1 && (
               <View className="gap-2">
                 <Text className="text-xs text-muted">Carteira</Text>
@@ -294,24 +392,21 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={{ gap: 8, paddingRight: 4 }}
                 >
-                  {wallets.map((w) => {
-                    const on = walletId === w.id
-                    return (
-                      <Pressable
-                        key={w.id}
-                        onPress={() => setWalletId(w.id)}
-                        className="rounded-full px-3 py-1.5"
-                        style={{ backgroundColor: on ? colors.fg : colors.border }}
-                      >
-                        <Text
-                          className="text-xs font-medium"
-                          style={{ color: on ? colors.bg : colors.muted }}
-                        >
-                          {w.name}
-                        </Text>
-                      </Pressable>
-                    )
-                  })}
+                  {wallets.map((w) => (
+                    <Chip
+                      key={w.id}
+                      icon={Wallet}
+                      color={w.color ?? colors.muted}
+                      label={w.name}
+                      selected={walletId === w.id}
+                      expanded={expandedWalletId === w.id}
+                      onPress={() => {
+                        setExpandedCatId(null)
+                        setWalletId(w.id)
+                        setExpandedWalletId(expandedWalletId === w.id ? null : w.id)
+                      }}
+                    />
+                  ))}
                 </ScrollView>
               </View>
             )}
@@ -322,6 +417,7 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
               placeholderTextColor={colors.muted}
               value={description}
               onChangeText={setDescription}
+              onFocus={collapseChips}
             />
 
             {save.isError && (
@@ -340,41 +436,71 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
                 {save.isPending ? 'Salvando…' : isEdit ? 'Salvar alterações' : 'Adicionar'}
               </Text>
             </Pressable>
-          </>
+          </Pressable>
         )}
       </BottomSheetScrollView>
     </Sheet>
   )
 })
 
-function CategoryChip({
-  category,
+/**
+ * Chip de seleção (categoria/carteira): mostra só o ícone; quando `expanded`,
+ * o rótulo desliza pra dentro (maxWidth + opacity animados), como no PWA.
+ * Abre ao tocar; o formulário recolhe (`expanded=false`) ao tocar em qualquer
+ * outro lugar. `selected` controla só o fundo (claro = selecionado).
+ */
+function Chip({
+  icon: Icon,
+  color,
+  label,
   selected,
+  expanded,
   onPress,
 }: {
-  category: Category
+  icon: LucideIcon | null
+  color: string
+  label: string
   selected: boolean
+  expanded: boolean
   onPress: () => void
 }) {
-  const Icon = category.icon ? CATEGORY_ICONS[category.icon] : null
-  const tint = category.color ?? colors.muted
+  const anim = useRef(new Animated.Value(expanded ? 1 : 0)).current
+  const first = useRef(true)
+  useEffect(() => {
+    if (first.current) {
+      first.current = false
+      anim.setValue(expanded ? 1 : 0)
+      return
+    }
+    const a = Animated.timing(anim, {
+      toValue: expanded ? 1 : 0,
+      duration: 180,
+      useNativeDriver: false,
+    })
+    a.start()
+    return () => a.stop()
+  }, [expanded, anim])
+
+  const maxWidth = anim.interpolate({ inputRange: [0, 1], outputRange: [0, 180] })
+  const fg = selected ? colors.bg : colors.muted
+  const iconColor = selected ? colors.bg : color
+
   return (
     <Pressable
       onPress={onPress}
-      className="flex-row items-center gap-1.5 rounded-full px-3 py-1.5"
+      className="shrink-0 flex-row items-center rounded-full px-2.5 py-1.5"
       style={{ backgroundColor: selected ? colors.fg : colors.border }}
     >
       {Icon ? (
-        <Icon size={13} color={selected ? colors.bg : tint} strokeWidth={1.75} />
+        <Icon size={14} color={iconColor} strokeWidth={2} />
       ) : (
-        <View className="h-2 w-2 rounded-full" style={{ backgroundColor: selected ? colors.bg : tint }} />
+        <View className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: iconColor }} />
       )}
-      <Text
-        className="text-xs font-medium"
-        style={{ color: selected ? colors.bg : colors.muted }}
-      >
-        {category.name}
-      </Text>
+      <Animated.View style={{ maxWidth, opacity: anim, overflow: 'hidden' }}>
+        <Text numberOfLines={1} className="ml-1.5 text-xs font-medium" style={{ color: fg }}>
+          {label}
+        </Text>
+      </Animated.View>
     </Pressable>
   )
 }
