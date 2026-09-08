@@ -1,7 +1,7 @@
 import { View, Text } from '#/tw'
 import { CATEGORY_ICONS } from '#/lib/category-icons'
 import { WALLET_META, type WalletType } from '#/lib/wallet-meta'
-import { fmtBRL } from '#/lib/format'
+import { fmtBRL, tabularNums } from '#/lib/format'
 import { colors } from '#/theme/colors'
 import type { Wallet } from '#/schemas/wallet'
 
@@ -32,7 +32,7 @@ export function WalletCard({ wallet }: { wallet: Wallet }) {
         ) : (
           <Text
             className="text-sm font-semibold"
-            style={{ color: wallet.balance >= 0 ? colors.fg : colors.negative }}
+            style={[tabularNums, { color: wallet.balance >= 0 ? colors.fg : colors.negative }]}
           >
             {fmtBRL(wallet.balance)}
           </Text>
@@ -51,11 +51,11 @@ function CreditBalance({ wallet }: { wallet: Wallet }) {
     <>
       <Text
         className="text-sm font-semibold"
-        style={{ color: invoice > 0 ? colors.negative : colors.fg }}
+        style={[tabularNums, { color: invoice > 0 ? colors.negative : colors.fg }]}
       >
         {fmtBRL(invoice)}
       </Text>
-      <Text className="text-[10px] text-muted">
+      <Text className="text-[10px] text-muted" style={tabularNums}>
         {limit > 0 ? `de ${fmtBRL(limit)} · ${Math.round(pct * 100)}%` : 'fatura atual'}
       </Text>
     </>

@@ -7,7 +7,7 @@ import { ScrollView, View, Text } from '#/tw'
 import { Image } from '#/tw/image'
 import { dashboardQuery } from '#/api/dashboard'
 import { useAuthSession } from '#/auth/session'
-import { fmtBRL, fmtDate } from '#/lib/format'
+import { fmtBRL, fmtDate, tabularNums } from '#/lib/format'
 import { colors } from '#/theme/colors'
 import { CATEGORY_ICONS } from '#/lib/category-icons'
 import type { DashboardData } from '#/schemas/dashboard'
@@ -49,7 +49,9 @@ export default function Dashboard() {
           {cold ? (
             <View className="h-10 w-40 rounded-lg bg-card" />
           ) : (
-            <Text className="text-4xl font-bold text-fg">{fmtBRL(data?.totalBalance ?? 0)}</Text>
+            <Text className="text-4xl font-bold text-fg" style={tabularNums}>
+              {fmtBRL(data?.totalBalance ?? 0)}
+            </Text>
           )}
           <Text className="text-xs text-muted">Saldo total · todas as carteiras</Text>
         </View>
@@ -117,10 +119,7 @@ function SummaryCard({
       {loading ? (
         <View className="h-6 w-24 rounded bg-bg" />
       ) : (
-        <Text
-          className="text-lg font-semibold"
-          style={{ color: tone }}
-        >
+        <Text className="text-lg font-semibold" style={[tabularNums, { color: tone }]}>
           {fmtBRL(value)}
         </Text>
       )}
@@ -156,7 +155,7 @@ function TxRow({ tx }: { tx: RecentTx }) {
       </View>
       <Text
         className="shrink-0 text-sm font-medium"
-        style={{ color: isExpense ? colors.negative : colors.positive }}
+        style={[tabularNums, { color: isExpense ? colors.negative : colors.positive }]}
       >
         {isExpense ? '-' : '+'}
         {fmtBRL(tx.amount)}

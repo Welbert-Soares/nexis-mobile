@@ -62,6 +62,11 @@ describe('WalletSheet', () => {
     expect(getByText('Salvar alterações')).toBeTruthy()
   })
 
+  it('edição sem alterações mantém "Salvar" desabilitado', () => {
+    const { getByText } = wrap(<WalletSheet ref={createRef<SheetRef>()} wallet={CREDIT} />)
+    expect(getByText('Salvar alterações')).toBeDisabled()
+  })
+
   it('lixeira abre a confirmação inline (estado local)', () => {
     const { getByTestId, getByText } = wrap(
       <WalletSheet ref={createRef<SheetRef>()} wallet={CREDIT} />,
