@@ -648,9 +648,9 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
 })
 
 /**
- * Card de toggle "Repetir" / "Parcelar" — espelha o PWA: ícone + rótulo à
- * esquerda (com um resumo `· Mensal` / `· 3x` quando ligado e o painel fechado)
- * e um switch fake à direita. Ocupa metade da linha (`flex-1`).
+ * Card de toggle "Repetir" / "Parcelar": ícone + rótulo à esquerda e um switch
+ * fake à direita. Quando ligado (e o painel fechado) o resumo `Mensal` / `3x`
+ * aparece numa segunda linha, abaixo do rótulo. Ocupa metade da linha (`flex-1`).
  */
 function ToggleCard({
   icon: Icon,
@@ -675,17 +675,19 @@ function ToggleCard({
     >
       <View className="flex-row items-center gap-2">
         <Icon size={16} color={active ? tone : colors.muted} />
-        <Text
-          className="text-sm font-medium"
-          style={{ color: active ? tone : colors.fg }}
-        >
-          {label}
-        </Text>
-        {hint && (
-          <Text className="text-xs" style={{ color: `${tone}B3` }}>
-            · {hint}
+        <View>
+          <Text
+            className="text-sm font-medium"
+            style={{ color: active ? tone : colors.fg }}
+          >
+            {label}
           </Text>
-        )}
+          {hint && (
+            <Text className="text-xs" style={{ color: `${tone}B3` }}>
+              {hint}
+            </Text>
+          )}
+        </View>
       </View>
       <View
         className="h-5 w-9 flex-row items-center rounded-full px-0.5"
