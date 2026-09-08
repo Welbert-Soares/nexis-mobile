@@ -31,3 +31,47 @@ export async function apiGet<T>(path: string, parse: (raw: unknown) => T): Promi
   }
   return parse(await res.json())
 }
+
+const identity = (r: unknown) => r as never
+
+/**
+ * Escrita (POST/DELETE) contra o backend. Mesmo cookie do `apiGet`. Em resposta
+ * não-2xx, tenta extrair `{ error }` do corpo (mensagem PT-BR do backend) e a
+ * carrega em `ApiError.message`. `204` resolve `undefined`.
+ */
+export async function apiSend<T = void>(
+  method: 'POST' | 'DELETE',
+  path: string,
+  body?: unknown,
+  parse: (raw: unknown) => T = identity,
+): Promise<T> {
+  const cookie = authClient.getCookie()
+  const res = await fetch(`${BASE}${path}`, {
+    method,
+    headers: {
+      Cookie: cookie,
+      Accept: 'application/json',
+      ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+    },
+    credentials: 'omit',
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  })
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    let message = text || res.statusText
+    try {
+      const j = JSON.parse(text)
+      if (j && typeof j.error === 'string') message = j.error
+    } catch {
+      /* corpo não é JSON — usa o texto puro */
+    }
+    throw new ApiError(res.status, message)
+  }
+  if (res.status === 204) return undefined as T
+  return parse(await res.json())
+}
+
+export const apiPost = <T = void>(path: string, body?: unknown, parse?: (raw: unknown) => T) =>
+  apiSend<T>('POST', path, body, parse)
+
+export const apiDelete = (path: string) => apiSend<void>('DELETE', path)
