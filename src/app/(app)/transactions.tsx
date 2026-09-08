@@ -3,10 +3,18 @@ import { RefreshControl, SectionList } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useFocusEffect } from 'expo-router'
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChevronLeft, ChevronRight, TrendingDown, TrendingUp } from 'lucide-react-native'
+import {
+  ChevronLeft,
+  ChevronRight,
+  FilterX,
+  SlidersHorizontal,
+  TrendingDown,
+  TrendingUp,
+} from 'lucide-react-native'
 
-import { View, Text, Pressable } from '#/tw'
+import { View, Text, Pressable, ScrollView } from '#/tw'
 import { monthTransactionsQuery } from '#/api/transactions'
+import { walletsQuery } from '#/api/wallets'
 import { fmtBRL, fmtDayGroup, tabularNums } from '#/lib/format'
 import { colors } from '#/theme/colors'
 import { TransactionRow } from '#/components/transactions/transaction-row'
@@ -33,6 +41,19 @@ export default function Transactions() {
   const query = useQuery({ ...monthTransactionsQuery(year, month), placeholderData: keepPreviousData })
   const txs = query.data ?? []
   const cold = query.isLoading && !query.data
+
+  const [filterType, setFilterType] = useState<'ALL' | 'INCOME' | 'EXPENSE'>('ALL')
+  const [filterWalletId, setFilterWalletId] = useState<string | null>(null)
+  const [filterCategoryId, setFilterCategoryId] = useState<string | null>(null)
+  const [filtersOpen, setFiltersOpen] = useState(false)
+
+  const { data: wallets = [] } = useQuery(walletsQuery)
+
+  const clearFilters = useCallback(() => {
+    setFilterType('ALL')
+    setFilterWalletId(null)
+    setFilterCategoryId(null)
+  }, [])
 
   const today = new Date()
   const isCurrentMonth = year === today.getFullYear() && month === today.getMonth() + 1
@@ -70,7 +91,30 @@ export default function Transactions() {
     return { income, expenses }
   }, [txs])
 
-  const sections = useMemo(() => groupByDay(txs), [txs])
+  const categoriesInMonth = useMemo(() => {
+    const seen = new Map<string, { id: string; name: string }>()
+    for (const t of txs) {
+      if (t.categoryId && t.category && !seen.has(t.categoryId)) {
+        seen.set(t.categoryId, { id: t.categoryId, name: t.category.name })
+      }
+    }
+    return [...seen.values()].sort((a, b) => a.name.localeCompare(b.name))
+  }, [txs])
+
+  const filteredTxs = useMemo(
+    () =>
+      txs.filter(
+        (t) =>
+          (filterType === 'ALL' || t.type === filterType) &&
+          (!filterWalletId || t.walletId === filterWalletId) &&
+          (!filterCategoryId || t.categoryId === filterCategoryId),
+      ),
+    [txs, filterType, filterWalletId, filterCategoryId],
+  )
+
+  const hasActiveFilter = filterType !== 'ALL' || !!filterWalletId || !!filterCategoryId
+
+  const sections = useMemo(() => groupByDay(filteredTxs), [filteredTxs])
 
   return (
     <View className="flex-1 bg-bg" style={{ paddingTop: insets.top }}>
@@ -100,6 +144,70 @@ export default function Transactions() {
           <SummaryCard label="Receitas" value={income} kind="in" loading={cold} />
           <SummaryCard label="Despesas" value={expenses} kind="out" loading={cold} />
         </View>
+
+        {/* Filtros */}
+        <View className="gap-2">
+          <View className="flex-row items-center justify-between">
+            <Pressable
+              onPress={() => setFiltersOpen((o) => !o)}
+              className="flex-row items-center gap-2 active:opacity-70"
+            >
+              <SlidersHorizontal size={16} color={hasActiveFilter ? colors.fg : colors.muted} />
+              <Text
+                className="text-xs font-medium"
+                style={{ color: hasActiveFilter ? colors.fg : colors.muted }}
+              >
+                {filterSummary(
+                  filterType,
+                  filterWalletId,
+                  filterCategoryId,
+                  wallets,
+                  categoriesInMonth,
+                )}
+              </Text>
+            </Pressable>
+            {hasActiveFilter && (
+              <Pressable
+                onPress={clearFilters}
+                className="flex-row items-center gap-1 active:opacity-70"
+              >
+                <FilterX size={13} color={colors.muted} />
+                <Text className="text-xs text-muted">limpar</Text>
+              </Pressable>
+            )}
+          </View>
+
+          {filtersOpen && (
+            <View className="gap-3 pt-1">
+              <FilterRow
+                label="Tipo"
+                options={[
+                  { id: 'ALL', name: 'Todas' },
+                  { id: 'INCOME', name: 'Receitas' },
+                  { id: 'EXPENSE', name: 'Despesas' },
+                ]}
+                selectedId={filterType}
+                onSelect={(id) => setFilterType(id as 'ALL' | 'INCOME' | 'EXPENSE')}
+              />
+              {wallets.length > 1 && (
+                <FilterRow
+                  label="Carteira"
+                  options={wallets.map((w) => ({ id: w.id, name: w.name }))}
+                  selectedId={filterWalletId}
+                  onSelect={(id) => setFilterWalletId((cur) => (cur === id ? null : id))}
+                />
+              )}
+              {categoriesInMonth.length > 0 && (
+                <FilterRow
+                  label="Categoria"
+                  options={categoriesInMonth}
+                  selectedId={filterCategoryId}
+                  onSelect={(id) => setFilterCategoryId((cur) => (cur === id ? null : id))}
+                />
+              )}
+            </View>
+          )}
+        </View>
       </View>
 
       {cold ? (
@@ -127,7 +235,9 @@ export default function Transactions() {
               onPress={item.isTransfer ? undefined : () => openEdit(item)}
             />
           )}
-          ListEmptyComponent={<EmptyState />}
+          ListEmptyComponent={
+            hasActiveFilter ? <EmptyFiltered onClear={clearFilters} /> : <EmptyState />
+          }
         />
       )}
     </View>
@@ -189,6 +299,74 @@ function EmptyState() {
     <View className="mt-6 items-center gap-2 rounded-2xl border border-border bg-card py-12">
       <Text className="text-sm text-muted">Nenhuma transação neste mês</Text>
       <Text className="text-xs text-muted/70">Toque em + para adicionar</Text>
+    </View>
+  )
+}
+
+function EmptyFiltered({ onClear }: { onClear: () => void }) {
+  return (
+    <View className="mt-6 items-center gap-3 rounded-2xl border border-border bg-card py-12">
+      <Text className="text-sm text-muted">Nenhuma transação com esses filtros</Text>
+      <Pressable onPress={onClear} className="rounded-full bg-accent px-4 py-2 active:opacity-80">
+        <Text className="text-xs font-medium text-white">limpar filtros</Text>
+      </Pressable>
+    </View>
+  )
+}
+
+function filterSummary(
+  type: 'ALL' | 'INCOME' | 'EXPENSE',
+  walletId: string | null,
+  categoryId: string | null,
+  wallets: { id: string; name: string }[],
+  cats: { id: string; name: string }[],
+): string {
+  const parts = [
+    type === 'INCOME' ? 'Receitas' : type === 'EXPENSE' ? 'Despesas' : null,
+    walletId ? (wallets.find((w) => w.id === walletId)?.name ?? null) : null,
+    categoryId ? (cats.find((c) => c.id === categoryId)?.name ?? null) : null,
+  ].filter(Boolean)
+  return parts.length ? parts.join(' · ') : 'Filtros'
+}
+
+function FilterRow({
+  label,
+  options,
+  selectedId,
+  onSelect,
+}: {
+  label: string
+  options: { id: string; name: string }[]
+  selectedId: string | null
+  onSelect: (id: string) => void
+}) {
+  return (
+    <View className="gap-1.5">
+      <Text className="text-[11px] uppercase tracking-wide text-muted">{label}</Text>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ gap: 8, paddingRight: 4 }}
+      >
+        {options.map((o) => {
+          const on = selectedId === o.id
+          return (
+            <Pressable
+              key={o.id}
+              onPress={() => onSelect(o.id)}
+              className="shrink-0 rounded-full px-3 py-1.5"
+              style={{ backgroundColor: on ? colors.fg : colors.border }}
+            >
+              <Text
+                className="text-xs font-medium"
+                style={{ color: on ? colors.bg : colors.muted }}
+              >
+                {o.name}
+              </Text>
+            </Pressable>
+          )
+        })}
+      </ScrollView>
     </View>
   )
 }
