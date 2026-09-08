@@ -19,6 +19,10 @@ jest.mock('#/api/dashboard', () => ({
 
 jest.mock('expo-router', () => ({ Link: ({ children }: { children: React.ReactNode }) => children }))
 
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
+}))
+
 // #/tw/image puxa react-native-reanimated (worklets), que não sobe no jest.
 // A sessão do teste tem image: null, então o Image nem renderiza.
 jest.mock('#/tw/image', () => ({ Image: () => null }))

@@ -1,4 +1,5 @@
 import { RefreshControl } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowRight, TrendingDown, TrendingUp, Wallet } from 'lucide-react-native'
 
@@ -15,6 +16,7 @@ type RecentTx = DashboardData['recent'][number]
 export default function Dashboard() {
   const { session } = useAuthSession()
   const qc = useQueryClient()
+  const insets = useSafeAreaInsets()
   const { data, isLoading, isFetching } = useQuery(dashboardQuery)
 
   const firstName = session?.user?.name?.split(' ')[0] ?? ''
@@ -23,7 +25,12 @@ export default function Dashboard() {
   return (
     <ScrollView
       className="flex-1 bg-bg"
-      contentContainerClassName="gap-6 px-4 pb-8 pt-14"
+      contentContainerStyle={{
+        paddingTop: insets.top + 16,
+        paddingHorizontal: 16,
+        paddingBottom: 32,
+        gap: 24,
+      }}
       refreshControl={
         <RefreshControl
           refreshing={isFetching && !isLoading}
