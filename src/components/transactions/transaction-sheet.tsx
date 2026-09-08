@@ -37,6 +37,14 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
   const [saved, setSaved] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [showDatePicker, setShowDatePicker] = useState(false)
+  // Qual chip está aberto (mostrando o nome). Abre ao tocar; recolhe pra só o
+  // ícone quando o usuário toca em qualquer outro lugar do formulário.
+  const [expandedCatId, setExpandedCatId] = useState<string | null>(null)
+  const [expandedWalletId, setExpandedWalletId] = useState<string | null>(null)
+  const collapseChips = () => {
+    setExpandedCatId(null)
+    setExpandedWalletId(null)
+  }
 
   const { data: wallets = [] } = useQuery(walletsQuery)
   const { data: categories = [] } = useQuery(categoriesQuery(type))
@@ -51,6 +59,8 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
     setSaved(false)
     setConfirmDelete(false)
     setShowDatePicker(false)
+    setExpandedCatId(null)
+    setExpandedWalletId(null)
   }
 
   useEffect(() => {
@@ -128,7 +138,10 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
         onClose?.()
       }}
     >
-      <BottomSheetScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40, gap: 20 }}>
+      <BottomSheetScrollView
+        contentContainerStyle={{ padding: 20, paddingBottom: 40, gap: 20 }}
+        onScrollBeginDrag={collapseChips}
+      >
         <View className="flex-row items-center justify-between">
           <Text className="text-base font-semibold text-fg">
             {isEdit ? 'Editar transação' : 'Nova transação'}
@@ -136,7 +149,10 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
           {isEdit && !saved && (
             <Pressable
               testID="transaction-delete"
-              onPress={() => setConfirmDelete(true)}
+              onPress={() => {
+                collapseChips()
+                setConfirmDelete(true)
+              }}
               className="p-1 active:opacity-60"
             >
               <Trash2 size={16} color={colors.muted} />
@@ -199,7 +215,10 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
             </Text>
           </View>
         ) : (
-          <>
+          // Tocar em qualquer área "vazia" do formulário recolhe os chips
+          // abertos (fica só o ícone). Os campos internos (Pressables/inputs)
+          // capturam os próprios toques e não disparam este onPress.
+          <Pressable onPress={collapseChips} android_disableSound style={{ gap: 20 }}>
             {/* Tipo */}
             <View className="flex-row rounded-xl p-1" style={{ backgroundColor: colors.border }}>
               {(
@@ -213,6 +232,7 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
                   <Pressable
                     key={opt.value}
                     onPress={() => {
+                      collapseChips()
                       setType(opt.value)
                       setCategoryId(null)
                     }}
@@ -237,6 +257,7 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
                 cents={cents}
                 onChange={setCents}
                 autoFocus={!isEdit}
+                onFocus={collapseChips}
                 InputComponent={BottomSheetTextInput}
               />
             </View>
@@ -246,7 +267,10 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
             <View className="gap-2">
               <Text className="text-xs text-muted">Data</Text>
               <Pressable
-                onPress={() => setShowDatePicker(true)}
+                onPress={() => {
+                  collapseChips()
+                  setShowDatePicker(true)
+                }}
                 className="flex-row items-center justify-between"
                 style={inputStyle}
               >
@@ -342,7 +366,17 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
                     color={c.color ?? colors.muted}
                     label={c.name}
                     selected={categoryId === c.id}
-                    onPress={() => setCategoryId(categoryId === c.id ? null : c.id)}
+                    expanded={expandedCatId === c.id}
+                    onPress={() => {
+                      setExpandedWalletId(null)
+                      if (categoryId === c.id) {
+                        setCategoryId(null)
+                        setExpandedCatId(null)
+                      } else {
+                        setCategoryId(c.id)
+                        setExpandedCatId(c.id)
+                      }
+                    }}
                   />
                 ))}
               </ScrollView>
@@ -364,7 +398,12 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
                       color={w.color ?? colors.muted}
                       label={w.name}
                       selected={walletId === w.id}
-                      onPress={() => setWalletId(w.id)}
+                      expanded={expandedWalletId === w.id}
+                      onPress={() => {
+                        setExpandedCatId(null)
+                        setWalletId(w.id)
+                        setExpandedWalletId(expandedWalletId === w.id ? null : w.id)
+                      }}
                     />
                   ))}
                 </ScrollView>
@@ -377,6 +416,7 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
               placeholderTextColor={colors.muted}
               value={description}
               onChangeText={setDescription}
+              onFocus={collapseChips}
             />
 
             {save.isError && (
@@ -395,7 +435,7 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
                 {save.isPending ? 'Salvando…' : isEdit ? 'Salvar alterações' : 'Adicionar'}
               </Text>
             </Pressable>
-          </>
+          </Pressable>
         )}
       </BottomSheetScrollView>
     </Sheet>
@@ -403,39 +443,42 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
 })
 
 /**
- * Chip de seleção (categoria/carteira): mostra só o ícone; o selecionado
- * expande e o rótulo desliza pra dentro (maxWidth + opacity animados), como no
- * PWA. Continua expandido enquanto estiver selecionado.
+ * Chip de seleção (categoria/carteira): mostra só o ícone; quando `expanded`,
+ * o rótulo desliza pra dentro (maxWidth + opacity animados), como no PWA.
+ * Abre ao tocar; o formulário recolhe (`expanded=false`) ao tocar em qualquer
+ * outro lugar. `selected` controla só o fundo (claro = selecionado).
  */
 function Chip({
   icon: Icon,
   color,
   label,
   selected,
+  expanded,
   onPress,
 }: {
   icon: LucideIcon | null
   color: string
   label: string
   selected: boolean
+  expanded: boolean
   onPress: () => void
 }) {
-  const anim = useRef(new Animated.Value(selected ? 1 : 0)).current
+  const anim = useRef(new Animated.Value(expanded ? 1 : 0)).current
   const first = useRef(true)
   useEffect(() => {
     if (first.current) {
       first.current = false
-      anim.setValue(selected ? 1 : 0)
+      anim.setValue(expanded ? 1 : 0)
       return
     }
     const a = Animated.timing(anim, {
-      toValue: selected ? 1 : 0,
+      toValue: expanded ? 1 : 0,
       duration: 180,
       useNativeDriver: false,
     })
     a.start()
     return () => a.stop()
-  }, [selected, anim])
+  }, [expanded, anim])
 
   const maxWidth = anim.interpolate({ inputRange: [0, 1], outputRange: [0, 180] })
   const fg = selected ? colors.bg : colors.muted

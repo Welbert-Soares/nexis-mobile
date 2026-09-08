@@ -24,6 +24,7 @@ type Props = {
   onChange: (cents: number) => void
   autoFocus?: boolean
   error?: boolean
+  onFocus?: () => void
   /**
    * Componente de input. Default = TextInput de #/tw. Dentro de um
    * @gorhom/bottom-sheet, passar BottomSheetTextInput (senão o teclado empurra
@@ -46,6 +47,7 @@ export function CurrencyInput({
   onChange,
   autoFocus,
   error,
+  onFocus,
   InputComponent = TextInput,
 }: Props) {
   const [focused, setFocused] = useState(false)
@@ -68,7 +70,10 @@ export function CurrencyInput({
       <InputComponent
         value={display}
         onChangeText={handleChange}
-        onFocus={() => setFocused(true)}
+        onFocus={() => {
+          setFocused(true)
+          onFocus?.()
+        }}
         onBlur={() => setFocused(false)}
         keyboardType="number-pad"
         autoFocus={autoFocus}
