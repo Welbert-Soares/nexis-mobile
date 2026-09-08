@@ -41,11 +41,13 @@ export default function AppLayout() {
           tabBarActiveTintColor: colors.accent,
           tabBarInactiveTintColor: colors.muted,
           sceneStyle: { backgroundColor: colors.bg },
-          // O bottom-tabs v7 alinha ícone+rótulo ao topo do slot
-          // (`justifyContent: 'flex-start'`) — centraliza verticalmente.
+          // No bottom-tabs v7 o botão do slot fica com o tamanho do conteúdo
+          // (sem flex) e o wrapper alinha ao topo → ícones colados em cima com
+          // sobra embaixo. Centralizar o wrapper + o próprio botão resolve.
+          tabBarItemStyle: { justifyContent: 'center' },
           tabBarButton: (props) => (
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            <Pressable {...(props as any)} style={[props.style, { justifyContent: 'center' }]} />
+            <Pressable {...(props as any)} style={[props.style, { flex: 1, justifyContent: 'center' }]} />
           ),
         }}
       >

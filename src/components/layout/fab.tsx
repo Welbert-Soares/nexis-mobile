@@ -22,7 +22,7 @@ export function FabTabButton(props: { style?: unknown }) {
       accessibilityRole="button"
       accessibilityLabel="Nova transação"
       testID="fab-new-transaction"
-      style={[props.style as never, { alignItems: 'center', justifyContent: 'center' }]}
+      style={[props.style as never, { flex: 1, alignItems: 'center', justifyContent: 'center' }]}
     >
       <View
         className="items-center justify-center rounded-full active:opacity-80"
