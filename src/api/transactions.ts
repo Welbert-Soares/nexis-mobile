@@ -18,9 +18,14 @@ export const monthTransactionsQuery = (year: number, month: number) => ({
 // expandidos. Parse com `.partial()` e o app ignora o corpo (só confirma o ok);
 // a UI recarrega via invalidação.
 export const createTransaction = (body: TransactionInputData) =>
-  apiPost('/api/mobile/transactions', body, (r) => TransactionSchema.partial().parse(r))
+  apiPost('/api/mobile/transactions', body, (r) =>
+    r == null ? null : TransactionSchema.partial().parse(r),
+  )
 
 export const editTransaction = (id: string, body: TransactionEditData) =>
   apiPost(`/api/mobile/transactions/${id}`, body, (r) => TransactionSchema.partial().parse(r))
 
-export const deleteTransaction = (id: string) => apiDelete(`/api/mobile/transactions/${id}`)
+export const deleteTransaction = (
+  id: string,
+  mode?: 'this' | 'this-and-future' | 'all',
+) => apiDelete(`/api/mobile/transactions/${id}${mode ? `?mode=${mode}` : ''}`)
