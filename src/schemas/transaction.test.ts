@@ -72,4 +72,33 @@ describe('bodies', () => {
       TransactionEditInput.parse({ amount: 5, type: 'INCOME', categoryId: null, description: null }),
     ).toMatchObject({ categoryId: null, description: null })
   })
+
+  it('TransactionInput aceita recurring + interval', () => {
+    const out = TransactionInput.parse({
+      walletId: 'w1',
+      amount: 10,
+      type: 'EXPENSE',
+      recurring: true,
+      interval: 'WEEKLY',
+    })
+    expect(out).toMatchObject({ recurring: true, interval: 'WEEKLY' })
+  })
+
+  it('TransactionInput aceita installments no range 2..24 e rejeita fora', () => {
+    expect(
+      TransactionInput.parse({ walletId: 'w1', amount: 10, type: 'EXPENSE', installments: 3 }),
+    ).toMatchObject({ installments: 3 })
+    expect(() =>
+      TransactionInput.parse({ walletId: 'w1', amount: 10, type: 'EXPENSE', installments: 1 }),
+    ).toThrow()
+    expect(() =>
+      TransactionInput.parse({ walletId: 'w1', amount: 10, type: 'EXPENSE', installments: 25 }),
+    ).toThrow()
+  })
+
+  it('TransactionInput rejeita interval fora do enum', () => {
+    expect(() =>
+      TransactionInput.parse({ walletId: 'w1', amount: 10, type: 'EXPENSE', interval: 'DAILY' }),
+    ).toThrow()
+  })
 })

@@ -34,8 +34,7 @@ export const TransactionSchema = z.object({
 export const TransactionsSchema = z.array(TransactionSchema)
 export type Transaction = z.infer<typeof TransactionSchema>
 
-// Bodies — espelham os schemas de src/server/services/transaction.service.ts
-// (sem recorrência/parcelamento; fora do escopo da Fatia 3).
+// Bodies — espelham os schemas de src/server/services/transaction.service.ts.
 export const TransactionInput = z.object({
   walletId: z.string(),
   amount: z.number().positive(),
@@ -43,6 +42,9 @@ export const TransactionInput = z.object({
   categoryId: z.string().optional(),
   description: z.string().optional(),
   date: z.string().optional(), // 'YYYY-MM-DD'
+  recurring: z.boolean().optional(),
+  interval: z.enum(['WEEKLY', 'BIWEEKLY', 'MONTHLY', 'YEARLY']).optional(),
+  installments: z.number().int().min(2).max(24).optional(),
 })
 export type TransactionInputData = z.infer<typeof TransactionInput>
 
