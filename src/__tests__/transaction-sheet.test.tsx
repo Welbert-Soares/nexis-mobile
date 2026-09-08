@@ -56,6 +56,9 @@ const TX: Transaction = {
   recurring: false, parentId: null, isInstallment: false, isTransfer: false,
 }
 
+const TX_INSTALLMENT: Transaction = { ...TX, id: 't2', isInstallment: true, description: 'Sofá (2/6)' }
+const TX_RECURRING: Transaction = { ...TX, id: 't3', recurring: true, description: 'Netflix' }
+
 function wrap(ui: React.ReactElement, seed?: (qc: QueryClient) => void) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   qc.setQueryData(['wallets'], [WALLET])
@@ -120,5 +123,34 @@ describe('TransactionSheet', () => {
     const { queryByText } = wrap(<TransactionSheet ref={createRef<SheetRef>()} tx={TX} />)
     expect(queryByText('Repetir')).toBeNull()
     expect(queryByText('Parcelar')).toBeNull()
+  })
+
+  it('lixeira numa parcela abre o seletor de 3 opções', () => {
+    const { getByTestId, getByText } = wrap(
+      <TransactionSheet ref={createRef<SheetRef>()} tx={TX_INSTALLMENT} />,
+    )
+    fireEvent.press(getByTestId('transaction-delete'))
+    expect(getByText('Só esta parcela')).toBeTruthy()
+    expect(getByText('Esta e as próximas')).toBeTruthy()
+    expect(getByText('Todas as parcelas')).toBeTruthy()
+  })
+
+  it('lixeira num recorrente abre o seletor de série', () => {
+    const { getByTestId, getByText } = wrap(
+      <TransactionSheet ref={createRef<SheetRef>()} tx={TX_RECURRING} />,
+    )
+    fireEvent.press(getByTestId('transaction-delete'))
+    expect(getByText('Só esta ocorrência')).toBeTruthy()
+    expect(getByText('Esta e as futuras')).toBeTruthy()
+    expect(getByText('Toda a série')).toBeTruthy()
+  })
+
+  it('lixeira numa transação comum mantém a confirmação simples', () => {
+    const { getByTestId, getByText, queryByText } = wrap(
+      <TransactionSheet ref={createRef<SheetRef>()} tx={TX} />,
+    )
+    fireEvent.press(getByTestId('transaction-delete'))
+    expect(getByText('Excluir esta transação?')).toBeTruthy()
+    expect(queryByText('Todas as parcelas')).toBeNull()
   })
 })

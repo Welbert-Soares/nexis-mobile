@@ -134,12 +134,14 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
   })
 
   const remove = useMutation({
-    mutationFn: () => deleteTransaction(tx!.id),
+    mutationFn: (mode?: 'this' | 'this-and-future' | 'all') => deleteTransaction(tx!.id, mode),
     onSuccess: () => {
       invalidate()
       ;(ref as React.RefObject<SheetRef>)?.current?.dismiss()
     },
   })
+
+  const isGroupTx = !!tx && (tx.isInstallment || tx.recurring || !!tx.parentId)
 
   const busy = save.isPending || remove.isPending || saved
 
@@ -202,30 +204,78 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
             </Pressable>
           </View>
         ) : confirmDelete ? (
-          <View className="items-center gap-4 py-6">
-            <Text className="text-sm text-fg">Excluir esta transação?</Text>
-            <Text className="text-center text-xs text-muted">
-              O saldo da carteira será revertido.
-            </Text>
-            <View className="flex-row gap-3">
+          isGroupTx ? (
+            <View className="gap-3 py-4">
+              <Text className="text-center text-sm text-fg">
+                {tx!.isInstallment ? 'Excluir parcelamento' : 'Excluir recorrência'}
+              </Text>
+              <Text className="text-center text-xs text-muted">
+                O saldo da carteira será revertido.
+              </Text>
+              <Pressable
+                onPress={() => remove.mutate('this')}
+                disabled={remove.isPending}
+                className="rounded-xl border border-border px-4 py-3.5 active:opacity-70"
+              >
+                <Text className="text-sm font-medium text-fg">
+                  {tx!.isInstallment ? 'Só esta parcela' : 'Só esta ocorrência'}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => remove.mutate('this-and-future')}
+                disabled={remove.isPending}
+                className="rounded-xl border border-border px-4 py-3.5 active:opacity-70"
+              >
+                <Text className="text-sm font-medium text-fg">
+                  {tx!.isInstallment ? 'Esta e as próximas' : 'Esta e as futuras'}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => remove.mutate('all')}
+                disabled={remove.isPending}
+                className="rounded-xl px-4 py-3.5 active:opacity-70"
+                style={{ backgroundColor: 'rgba(248,113,113,0.18)' }}
+              >
+                <Text className="text-sm font-medium" style={{ color: colors.negative }}>
+                  {tx!.isInstallment ? 'Todas as parcelas' : 'Toda a série'}
+                </Text>
+              </Pressable>
               <Pressable
                 onPress={() => setConfirmDelete(false)}
-                className="flex-1 rounded-xl border border-border py-3"
+                className="rounded-xl border border-border py-3"
               >
                 <Text className="text-center text-sm text-muted">Cancelar</Text>
               </Pressable>
-              <Pressable
-                onPress={() => remove.mutate()}
-                disabled={remove.isPending}
-                className="flex-1 rounded-xl py-3"
-                style={{ backgroundColor: 'rgba(248,113,113,0.18)' }}
-              >
-                <Text className="text-center text-sm font-medium" style={{ color: colors.negative }}>
-                  {remove.isPending ? 'Excluindo…' : 'Excluir'}
-                </Text>
-              </Pressable>
             </View>
-          </View>
+          ) : (
+            <View className="items-center gap-4 py-6">
+              <Text className="text-sm text-fg">Excluir esta transação?</Text>
+              <Text className="text-center text-xs text-muted">
+                O saldo da carteira será revertido.
+              </Text>
+              <View className="flex-row gap-3">
+                <Pressable
+                  onPress={() => setConfirmDelete(false)}
+                  className="flex-1 rounded-xl border border-border py-3"
+                >
+                  <Text className="text-center text-sm text-muted">Cancelar</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => remove.mutate(undefined)}
+                  disabled={remove.isPending}
+                  className="flex-1 rounded-xl py-3"
+                  style={{ backgroundColor: 'rgba(248,113,113,0.18)' }}
+                >
+                  <Text
+                    className="text-center text-sm font-medium"
+                    style={{ color: colors.negative }}
+                  >
+                    {remove.isPending ? 'Excluindo…' : 'Excluir'}
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          )
         ) : saved ? (
           <View className="items-center gap-3 py-8">
             <View
