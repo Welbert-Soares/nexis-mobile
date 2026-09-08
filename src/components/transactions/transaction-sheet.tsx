@@ -272,10 +272,10 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
                   setShowDatePicker(true)
                 }}
                 className="flex-row items-center justify-between"
-                style={inputStyle}
+                style={[inputStyle, showDatePicker && { borderColor: colors.muted }]}
               >
                 <Text className="text-sm capitalize text-fg">{fmtDate(date)}</Text>
-                <Calendar size={16} color={colors.muted} />
+                <Calendar size={16} color={showDatePicker ? colors.fg : colors.muted} />
               </Pressable>
 
               {/* Android: o picker É o próprio dialog nativo (portal), sem wrapper. */}
