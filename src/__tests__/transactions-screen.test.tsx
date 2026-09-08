@@ -120,18 +120,12 @@ describe('Transactions screen', () => {
     expect(getByText('Nenhuma transação neste mês')).toBeTruthy()
   })
 
-  // "Despesas" também é rótulo do card de resumo — pega o último match (o chip).
-  const pressFilterChip = (getAllByText: (t: string) => unknown[], label: string) => {
-    const els = getAllByText(label) as Parameters<typeof fireEvent.press>[0][]
-    fireEvent.press(els[els.length - 1])
-  }
-
   it('filtro de tipo Despesas some as receitas da lista mas o resumo não muda', () => {
-    const { getByText, queryByText, getAllByText } = renderWith(FIXTURE)
+    const { getByText, getByTestId, queryByText, getAllByText } = renderWith(FIXTURE)
     // resumo: receitas = 1000 (card + linha do salário)
     expect(getAllByText(/1\.000,00/).length).toBeGreaterThanOrEqual(2)
     fireEvent.press(getByText('Filtros'))
-    pressFilterChip(getAllByText, 'Despesas')
+    fireEvent.press(getByTestId('filter-type-EXPENSE'))
     // linha do salário sai
     expect(queryByText('Salário')).toBeNull()
     // card Receitas continua com 1.000,00
@@ -139,18 +133,18 @@ describe('Transactions screen', () => {
   })
 
   it('"limpar" restaura a lista', () => {
-    const { getByText, queryByText, getAllByText } = renderWith(FIXTURE)
+    const { getByText, getByTestId, queryByText } = renderWith(FIXTURE)
     fireEvent.press(getByText('Filtros'))
-    pressFilterChip(getAllByText, 'Despesas')
+    fireEvent.press(getByTestId('filter-type-EXPENSE'))
     expect(queryByText('Salário')).toBeNull()
-    fireEvent.press(getByText('limpar'))
+    fireEvent.press(getByTestId('filters-clear'))
     expect(getByText('Salário')).toBeTruthy()
   })
 
   it('filtro sem resultado mostra o empty state de filtro', () => {
-    const { getByText, getAllByText } = renderWith([FIXTURE[0]]) // só a receita
+    const { getByText, getByTestId } = renderWith([FIXTURE[0]]) // só a receita
     fireEvent.press(getByText('Filtros'))
-    pressFilterChip(getAllByText, 'Despesas')
+    fireEvent.press(getByTestId('filter-type-EXPENSE'))
     expect(getByText('Nenhuma transação com esses filtros')).toBeTruthy()
   })
 })
