@@ -1,6 +1,7 @@
-import { useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { RefreshControl } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useFocusEffect } from 'expo-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeftRight, Plus, Wallet as WalletIcon } from 'lucide-react-native'
 
@@ -20,6 +21,14 @@ export default function Wallets() {
   const { data, isLoading, isFetching } = useQuery(walletsQuery)
   const wallets = data ?? []
   const cold = isLoading && !data
+
+  // Saldo é derivado no backend a cada leitura — recarrega ao focar a aba pra
+  // refletir transações lançadas em outra tela.
+  useFocusEffect(
+    useCallback(() => {
+      qc.invalidateQueries({ queryKey: ['wallets'] })
+    }, [qc]),
+  )
 
   const [editing, setEditing] = useState<Wallet | undefined>()
   const walletRef = useRef<SheetRef>(null)

@@ -12,6 +12,7 @@ jest.mock('#/tw', () => {
 })
 jest.mock('lucide-react-native', () => new Proxy({}, { get: () => () => null }))
 jest.mock('#/lib/category-icons', () => ({ CATEGORY_ICONS: {} }))
+jest.mock('expo-router', () => ({ useFocusEffect: () => {} }))
 jest.mock('#/api/wallets', () => ({
   walletsQuery: { queryKey: ['wallets'], queryFn: jest.fn(), staleTime: Infinity },
 }))
