@@ -37,9 +37,6 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
   const [saved, setSaved] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [showDatePicker, setShowDatePicker] = useState(false)
-  // Chip "aberto" (mostra o texto) — independente do selecionado, igual ao PWA.
-  const [expandedCatId, setExpandedCatId] = useState<string | null>(null)
-  const [expandedWalletId, setExpandedWalletId] = useState<string | null>(null)
 
   const { data: wallets = [] } = useQuery(walletsQuery)
   const { data: categories = [] } = useQuery(categoriesQuery(type))
@@ -54,8 +51,6 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
     setSaved(false)
     setConfirmDelete(false)
     setShowDatePicker(false)
-    setExpandedCatId(null)
-    setExpandedWalletId(null)
   }
 
   useEffect(() => {
@@ -220,7 +215,6 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
                     onPress={() => {
                       setType(opt.value)
                       setCategoryId(null)
-                      setExpandedCatId(null)
                     }}
                     className="flex-1 rounded-lg py-2"
                     style={{ backgroundColor: on ? `${opt.tone}26` : 'transparent' }}
@@ -333,7 +327,7 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
               )}
             </View>
 
-            {/* Categoria — chip só com ícone; abre e mostra o nome ao tocar (igual PWA) */}
+            {/* Categoria — chip só com ícone; o selecionado abre e mostra o nome */}
             <View className="gap-2">
               <Text className="text-xs text-muted">Categoria</Text>
               <ScrollView
@@ -348,11 +342,7 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
                     color={c.color ?? colors.muted}
                     label={c.name}
                     selected={categoryId === c.id}
-                    expanded={expandedCatId === c.id}
-                    onPress={() => {
-                      setExpandedCatId(expandedCatId === c.id ? null : c.id)
-                      if (categoryId !== c.id) setCategoryId(c.id)
-                    }}
+                    onPress={() => setCategoryId(categoryId === c.id ? null : c.id)}
                   />
                 ))}
               </ScrollView>
@@ -374,11 +364,7 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
                       color={w.color ?? colors.muted}
                       label={w.name}
                       selected={walletId === w.id}
-                      expanded={expandedWalletId === w.id}
-                      onPress={() => {
-                        setWalletId(w.id)
-                        setExpandedWalletId(expandedWalletId === w.id ? null : w.id)
-                      }}
+                      onPress={() => setWalletId(w.id)}
                     />
                   ))}
                 </ScrollView>
@@ -417,42 +403,39 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
 })
 
 /**
- * Chip de seleção (categoria/carteira): mostra só o ícone; quando `expanded`,
- * o rótulo desliza pra dentro (maxWidth + opacity animados), como no PWA.
- * `selected` controla o fundo (claro = selecionado). Os dois estados são
- * independentes — dá pra estar selecionado sem estar aberto.
+ * Chip de seleção (categoria/carteira): mostra só o ícone; o selecionado
+ * expande e o rótulo desliza pra dentro (maxWidth + opacity animados), como no
+ * PWA. Continua expandido enquanto estiver selecionado.
  */
 function Chip({
   icon: Icon,
   color,
   label,
   selected,
-  expanded,
   onPress,
 }: {
   icon: LucideIcon | null
   color: string
   label: string
   selected: boolean
-  expanded: boolean
   onPress: () => void
 }) {
-  const anim = useRef(new Animated.Value(expanded ? 1 : 0)).current
+  const anim = useRef(new Animated.Value(selected ? 1 : 0)).current
   const first = useRef(true)
   useEffect(() => {
     if (first.current) {
       first.current = false
-      anim.setValue(expanded ? 1 : 0)
+      anim.setValue(selected ? 1 : 0)
       return
     }
     const a = Animated.timing(anim, {
-      toValue: expanded ? 1 : 0,
+      toValue: selected ? 1 : 0,
       duration: 180,
       useNativeDriver: false,
     })
     a.start()
     return () => a.stop()
-  }, [expanded, anim])
+  }, [selected, anim])
 
   const maxWidth = anim.interpolate({ inputRange: [0, 1], outputRange: [0, 180] })
   const fg = selected ? colors.bg : colors.muted
