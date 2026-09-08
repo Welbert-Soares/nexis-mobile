@@ -4,7 +4,7 @@ import { ArrowLeftRight, LayoutDashboard, Wallet } from 'lucide-react-native'
 import { useAuthSession } from '#/auth/session'
 import { colors } from '#/theme/colors'
 import { TransactionSheetProvider } from '#/components/transactions/transaction-sheet-context'
-import { Fab } from '#/components/layout/fab'
+import { FabTabButton } from '#/components/layout/fab'
 
 export default function AppLayout() {
   const { session } = useAuthSession()
@@ -36,6 +36,14 @@ export default function AppLayout() {
             tabBarIcon: ({ color, size }) => <ArrowLeftRight color={color} size={size} />,
           }}
         />
+        {/* Slot central: botão "+" que abre o sheet (não navega). */}
+        <Tabs.Screen
+          name="new"
+          options={{
+            title: '',
+            tabBarButton: () => <FabTabButton />,
+          }}
+        />
         <Tabs.Screen
           name="wallets"
           options={{
@@ -44,7 +52,6 @@ export default function AppLayout() {
           }}
         />
       </Tabs>
-      <Fab />
     </TransactionSheetProvider>
   )
 }

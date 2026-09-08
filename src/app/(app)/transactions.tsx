@@ -108,7 +108,7 @@ export default function Transactions() {
         <SectionList
           sections={sections}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 96 }}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: insets.bottom + 24 }}
           stickySectionHeadersEnabled={false}
           refreshControl={
             <RefreshControl
