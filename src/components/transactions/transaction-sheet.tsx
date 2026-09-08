@@ -1,9 +1,9 @@
-import { forwardRef, useEffect, useState } from 'react'
-import { Modal, Platform } from 'react-native'
+import { forwardRef, useEffect, useRef, useState } from 'react'
+import { Animated, Modal, Platform } from 'react-native'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { router } from 'expo-router'
-import { Calendar, Check, Trash2 } from 'lucide-react-native'
+import { Calendar, Check, Trash2, Wallet, type LucideIcon } from 'lucide-react-native'
 
 import { View, Text, Pressable, ScrollView } from '#/tw'
 import { Sheet, SheetRef, BottomSheetScrollView, BottomSheetTextInput } from '#/components/ui/sheet'
@@ -16,7 +16,6 @@ import { walletsQuery } from '#/api/wallets'
 import { categoriesQuery } from '#/api/categories'
 import { createTransaction, editTransaction, deleteTransaction } from '#/api/transactions'
 import type { Transaction, TransactionType } from '#/schemas/transaction'
-import type { Category } from '#/schemas/category'
 
 type TxType = TransactionType
 
@@ -38,6 +37,9 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
   const [saved, setSaved] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [showDatePicker, setShowDatePicker] = useState(false)
+  // Chip "aberto" (mostra o texto) — independente do selecionado, igual ao PWA.
+  const [expandedCatId, setExpandedCatId] = useState<string | null>(null)
+  const [expandedWalletId, setExpandedWalletId] = useState<string | null>(null)
 
   const { data: wallets = [] } = useQuery(walletsQuery)
   const { data: categories = [] } = useQuery(categoriesQuery(type))
@@ -52,6 +54,8 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
     setSaved(false)
     setConfirmDelete(false)
     setShowDatePicker(false)
+    setExpandedCatId(null)
+    setExpandedWalletId(null)
   }
 
   useEffect(() => {
@@ -216,6 +220,7 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
                     onPress={() => {
                       setType(opt.value)
                       setCategoryId(null)
+                      setExpandedCatId(null)
                     }}
                     className="flex-1 rounded-lg py-2"
                     style={{ backgroundColor: on ? `${opt.tone}26` : 'transparent' }}
@@ -328,7 +333,7 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
               )}
             </View>
 
-            {/* Categoria */}
+            {/* Categoria — chip só com ícone; abre e mostra o nome ao tocar (igual PWA) */}
             <View className="gap-2">
               <Text className="text-xs text-muted">Categoria</Text>
               <ScrollView
@@ -337,17 +342,23 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
                 contentContainerStyle={{ gap: 8, paddingRight: 4 }}
               >
                 {categories.map((c) => (
-                  <CategoryChip
+                  <Chip
                     key={c.id}
-                    category={c}
+                    icon={c.icon ? CATEGORY_ICONS[c.icon] : null}
+                    color={c.color ?? colors.muted}
+                    label={c.name}
                     selected={categoryId === c.id}
-                    onPress={() => setCategoryId(categoryId === c.id ? null : c.id)}
+                    expanded={expandedCatId === c.id}
+                    onPress={() => {
+                      setExpandedCatId(expandedCatId === c.id ? null : c.id)
+                      if (categoryId !== c.id) setCategoryId(c.id)
+                    }}
                   />
                 ))}
               </ScrollView>
             </View>
 
-            {/* Carteira */}
+            {/* Carteira — mesmo comportamento do chip de categoria */}
             {wallets.length > 1 && (
               <View className="gap-2">
                 <Text className="text-xs text-muted">Carteira</Text>
@@ -356,24 +367,20 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={{ gap: 8, paddingRight: 4 }}
                 >
-                  {wallets.map((w) => {
-                    const on = walletId === w.id
-                    return (
-                      <Pressable
-                        key={w.id}
-                        onPress={() => setWalletId(w.id)}
-                        className="rounded-full px-3 py-1.5"
-                        style={{ backgroundColor: on ? colors.fg : colors.border }}
-                      >
-                        <Text
-                          className="text-xs font-medium"
-                          style={{ color: on ? colors.bg : colors.muted }}
-                        >
-                          {w.name}
-                        </Text>
-                      </Pressable>
-                    )
-                  })}
+                  {wallets.map((w) => (
+                    <Chip
+                      key={w.id}
+                      icon={Wallet}
+                      color={w.color ?? colors.muted}
+                      label={w.name}
+                      selected={walletId === w.id}
+                      expanded={expandedWalletId === w.id}
+                      onPress={() => {
+                        setWalletId(w.id)
+                        setExpandedWalletId(expandedWalletId === w.id ? null : w.id)
+                      }}
+                    />
+                  ))}
                 </ScrollView>
               </View>
             )}
@@ -409,34 +416,64 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
   )
 })
 
-function CategoryChip({
-  category,
+/**
+ * Chip de seleção (categoria/carteira): mostra só o ícone; quando `expanded`,
+ * o rótulo desliza pra dentro (maxWidth + opacity animados), como no PWA.
+ * `selected` controla o fundo (claro = selecionado). Os dois estados são
+ * independentes — dá pra estar selecionado sem estar aberto.
+ */
+function Chip({
+  icon: Icon,
+  color,
+  label,
   selected,
+  expanded,
   onPress,
 }: {
-  category: Category
+  icon: LucideIcon | null
+  color: string
+  label: string
   selected: boolean
+  expanded: boolean
   onPress: () => void
 }) {
-  const Icon = category.icon ? CATEGORY_ICONS[category.icon] : null
-  const tint = category.color ?? colors.muted
+  const anim = useRef(new Animated.Value(expanded ? 1 : 0)).current
+  const first = useRef(true)
+  useEffect(() => {
+    if (first.current) {
+      first.current = false
+      anim.setValue(expanded ? 1 : 0)
+      return
+    }
+    const a = Animated.timing(anim, {
+      toValue: expanded ? 1 : 0,
+      duration: 180,
+      useNativeDriver: false,
+    })
+    a.start()
+    return () => a.stop()
+  }, [expanded, anim])
+
+  const maxWidth = anim.interpolate({ inputRange: [0, 1], outputRange: [0, 180] })
+  const fg = selected ? colors.bg : colors.muted
+  const iconColor = selected ? colors.bg : color
+
   return (
     <Pressable
       onPress={onPress}
-      className="flex-row items-center gap-1.5 rounded-full px-3 py-1.5"
+      className="shrink-0 flex-row items-center rounded-full px-2.5 py-1.5"
       style={{ backgroundColor: selected ? colors.fg : colors.border }}
     >
       {Icon ? (
-        <Icon size={13} color={selected ? colors.bg : tint} strokeWidth={1.75} />
+        <Icon size={14} color={iconColor} strokeWidth={2} />
       ) : (
-        <View className="h-2 w-2 rounded-full" style={{ backgroundColor: selected ? colors.bg : tint }} />
+        <View className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: iconColor }} />
       )}
-      <Text
-        className="text-xs font-medium"
-        style={{ color: selected ? colors.bg : colors.muted }}
-      >
-        {category.name}
-      </Text>
+      <Animated.View style={{ maxWidth, opacity: anim, overflow: 'hidden' }}>
+        <Text numberOfLines={1} className="ml-1.5 text-xs font-medium" style={{ color: fg }}>
+          {label}
+        </Text>
+      </Animated.View>
     </Pressable>
   )
 }
