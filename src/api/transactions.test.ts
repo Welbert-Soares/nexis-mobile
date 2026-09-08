@@ -1,4 +1,10 @@
-import { monthTransactionsQuery, createTransaction, editTransaction, deleteTransaction } from './transactions'
+import {
+  monthTransactionsQuery,
+  createTransaction,
+  editTransaction,
+  deleteTransaction,
+  triggerRecurring,
+} from './transactions'
 
 jest.mock('#/auth/client', () => ({
   authClient: { getCookie: jest.fn().mockReturnValue('better-auth.session_token=abc') },
@@ -83,5 +89,17 @@ describe('mutations', () => {
     await deleteTransaction('t1')
     expect(fetchSpy.mock.calls[0][0]).toContain('/api/mobile/transactions/t1')
     expect(fetchSpy.mock.calls[0][0]).not.toContain('?mode=')
+  })
+
+  it('triggerRecurring manda POST e devolve o count', async () => {
+    const fetchSpy = jest.spyOn(globalThis, 'fetch').mockReturnValue(okJson({ count: 2 }))
+    await expect(triggerRecurring()).resolves.toBe(2)
+    expect(fetchSpy.mock.calls[0][0]).toContain('/api/mobile/transactions/trigger-recurring')
+    expect((fetchSpy.mock.calls[0][1] as RequestInit).method).toBe('POST')
+  })
+
+  it('triggerRecurring devolve 0 quando a resposta não traz count', async () => {
+    jest.spyOn(globalThis, 'fetch').mockReturnValue(okJson({}))
+    await expect(triggerRecurring()).resolves.toBe(0)
   })
 })

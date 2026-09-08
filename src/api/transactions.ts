@@ -41,3 +41,11 @@ export const deleteTransaction = (
   id: string,
   mode?: 'this' | 'this-and-future' | 'all',
 ) => apiDelete(`/api/mobile/transactions/${id}${mode ? `?mode=${mode}` : ''}`)
+
+// Gera as ocorrências recorrentes vencidas (o app chama ao abrir). Responde
+// quantas foram lançadas — `count > 0` ⇒ invalidar as queries de transações.
+export const triggerRecurring = () =>
+  apiPost('/api/mobile/transactions/trigger-recurring', undefined, (r) => {
+    const c = (r as { count?: unknown })?.count
+    return typeof c === 'number' ? c : 0
+  })
