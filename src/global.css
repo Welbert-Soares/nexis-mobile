@@ -21,8 +21,16 @@
   }
 }
 
-/* Design tokens — populated in Task 4 */
+/* Design tokens — paleta do PWA (zinc-950 / zinc-900 / azul-400 de destaque) */
 @layer theme {
   @theme {
+    --color-bg: #09090b;
+    --color-card: #18181b;
+    --color-border: #27272a;
+    --color-fg: #fafafa;
+    --color-muted: #71717a;
+    --color-accent: #60a5fa;
+    --color-positive: #34d399;
+    --color-negative: #f87171;
   }
 }
