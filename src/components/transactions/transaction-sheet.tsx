@@ -1,9 +1,17 @@
 import { forwardRef, useEffect, useRef, useState } from 'react'
-import { Animated, Modal, Platform, Switch } from 'react-native'
+import { Animated, Modal, Platform } from 'react-native'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { router } from 'expo-router'
-import { Calendar, Check, Trash2, Wallet, type LucideIcon } from 'lucide-react-native'
+import {
+  Calendar,
+  Check,
+  Layers,
+  Repeat2,
+  Trash2,
+  Wallet,
+  type LucideIcon,
+} from 'lucide-react-native'
 
 import { View, Text, Pressable, ScrollView } from '#/tw'
 import { Sheet, SheetRef, BottomSheetScrollView, BottomSheetTextInput } from '#/components/ui/sheet'
@@ -50,8 +58,10 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [showDatePicker, setShowDatePicker] = useState(false)
   const [recurring, setRecurring] = useState(false)
+  const [recurringOpen, setRecurringOpen] = useState(false)
   const [interval, setInterval] = useState<Interval>('MONTHLY')
   const [parceling, setParceling] = useState(false)
+  const [parcelingOpen, setParcelingOpen] = useState(false)
   const [installments, setInstallments] = useState(MIN_INSTALLMENTS)
   // Qual chip está aberto (mostrando o nome). Abre ao tocar; recolhe pra só o
   // ícone quando o usuário toca em qualquer outro lugar do formulário.
@@ -78,8 +88,10 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
     setExpandedCatId(null)
     setExpandedWalletId(null)
     setRecurring(false)
+    setRecurringOpen(false)
     setInterval('MONTHLY')
     setParceling(false)
+    setParcelingOpen(false)
     setInstallments(MIN_INSTALLMENTS)
   }
 
@@ -313,7 +325,10 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
                       collapseChips()
                       setType(opt.value)
                       setCategoryId(null)
-                      if (opt.value === 'INCOME') setParceling(false)
+                      if (opt.value === 'INCOME') {
+                        setParceling(false)
+                        setParcelingOpen(false)
+                      }
                     }}
                     className="flex-1 rounded-lg py-2"
                     style={{ backgroundColor: on ? `${opt.tone}26` : 'transparent' }}
@@ -498,35 +513,73 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
               onFocus={collapseChips}
             />
 
-            {/* Repetir / Parcelar — só na criação */}
+            {/* Repetir / Parcelar — só na criação (espelha o PWA) */}
             {!isEdit && (
-              <View className="gap-3">
-                <View className="flex-row items-center justify-between">
-                  <Text className="text-sm text-fg">Repetir</Text>
-                  <Switch
-                    value={recurring}
-                    onValueChange={(v) => {
+              <View className="gap-2">
+                <View className="flex-row gap-2">
+                  <ToggleCard
+                    icon={Repeat2}
+                    label="Repetir"
+                    tone={colors.accent}
+                    active={recurring}
+                    hint={
+                      recurring && !recurringOpen
+                        ? INTERVALS.find((i) => i.value === interval)?.label
+                        : undefined
+                    }
+                    onPress={() => {
                       collapseChips()
-                      setRecurring(v)
-                      if (v) setParceling(false)
+                      if (recurring) {
+                        setRecurring(false)
+                        setRecurringOpen(false)
+                      } else {
+                        setRecurring(true)
+                        setRecurringOpen(true)
+                        setParceling(false)
+                        setParcelingOpen(false)
+                      }
                     }}
-                    trackColor={{ true: colors.accent, false: colors.border }}
-                    thumbColor={colors.fg}
                   />
+
+                  {type === 'EXPENSE' && (
+                    <ToggleCard
+                      icon={Layers}
+                      label="Parcelar"
+                      tone={colors.violet}
+                      active={parceling}
+                      hint={parceling && !parcelingOpen ? `${installments}x` : undefined}
+                      onPress={() => {
+                        collapseChips()
+                        if (parceling) {
+                          setParceling(false)
+                          setParcelingOpen(false)
+                        } else {
+                          setParceling(true)
+                          setParcelingOpen(true)
+                          setRecurring(false)
+                          setRecurringOpen(false)
+                        }
+                      }}
+                    />
+                  )}
                 </View>
-                {recurring && (
-                  <View className="flex-row flex-wrap gap-2">
+
+                {recurring && recurringOpen && (
+                  <View className="flex-row gap-2 pt-1">
                     {INTERVALS.map((it) => {
                       const on = interval === it.value
                       return (
                         <Pressable
                           key={it.value}
-                          onPress={() => setInterval(it.value)}
-                          className="rounded-full px-3 py-1.5"
+                          onPress={() => {
+                            setInterval(it.value)
+                            setRecurringOpen(false)
+                          }}
+                          className="flex-1 rounded-full py-1.5"
                           style={{ backgroundColor: on ? colors.fg : colors.border }}
                         >
                           <Text
-                            className="text-xs font-medium"
+                            className="text-center text-xs font-medium"
                             style={{ color: on ? colors.bg : colors.muted }}
                           >
                             {it.label}
@@ -537,63 +590,36 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
                   </View>
                 )}
 
-                {type === 'EXPENSE' && (
-                  <>
-                    <View className="flex-row items-center justify-between">
-                      <Text className="text-sm text-fg">Parcelar</Text>
-                      <Switch
-                        value={parceling}
-                        onValueChange={(v) => {
-                          collapseChips()
-                          setParceling(v)
-                          if (v) setRecurring(false)
-                        }}
-                        trackColor={{ true: colors.accent, false: colors.border }}
-                        thumbColor={colors.fg}
-                      />
-                    </View>
-                    {parceling && (
-                      <View className="gap-1.5">
-                        <View className="flex-row items-center justify-center gap-6">
-                          <Pressable
-                            onPress={() =>
-                              setInstallments((n) => Math.max(MIN_INSTALLMENTS, n - 1))
-                            }
-                            disabled={installments <= MIN_INSTALLMENTS}
-                            className="h-9 w-9 items-center justify-center rounded-full"
-                            style={{
-                              backgroundColor: colors.border,
-                              opacity: installments <= MIN_INSTALLMENTS ? 0.4 : 1,
-                            }}
-                          >
-                            <Text className="text-lg text-fg">−</Text>
-                          </Pressable>
-                          <Text
-                            className="text-lg font-semibold text-fg"
-                            style={tabularNums}
-                          >
-                            {installments}x
-                          </Text>
-                          <Pressable
-                            onPress={() =>
-                              setInstallments((n) => Math.min(MAX_INSTALLMENTS, n + 1))
-                            }
-                            disabled={installments >= MAX_INSTALLMENTS}
-                            className="h-9 w-9 items-center justify-center rounded-full"
-                            style={{
-                              backgroundColor: colors.border,
-                              opacity: installments >= MAX_INSTALLMENTS ? 0.4 : 1,
-                            }}
-                          >
-                            <Text className="text-lg text-fg">＋</Text>
-                          </Pressable>
-                        </View>
-                        <Text className="text-center text-xs text-muted">
-                          de {fmtBRL(cents / 100 / installments)} cada
+                {parceling && parcelingOpen && (
+                  <View
+                    className="mt-1 flex-row items-center gap-4 rounded-xl px-4 py-3"
+                    style={{ backgroundColor: colors.border }}
+                  >
+                    <Pressable
+                      onPress={() => setInstallments((n) => Math.max(MIN_INSTALLMENTS, n - 1))}
+                      className="h-8 w-8 items-center justify-center rounded-full active:opacity-70"
+                      style={{ backgroundColor: colors.card }}
+                    >
+                      <Text className="text-lg leading-none text-fg">−</Text>
+                    </Pressable>
+                    <View className="flex-1 items-center">
+                      <Text className="text-2xl font-bold text-fg" style={tabularNums}>
+                        {installments}x
+                      </Text>
+                      {cents > 0 && (
+                        <Text className="text-xs text-muted">
+                          de {fmtBRL(cents / 100 / installments)}
                         </Text>
-                      </View>
-                    )}
-                  </>
+                      )}
+                    </View>
+                    <Pressable
+                      onPress={() => setInstallments((n) => Math.min(MAX_INSTALLMENTS, n + 1))}
+                      className="h-8 w-8 items-center justify-center rounded-full active:opacity-70"
+                      style={{ backgroundColor: colors.card }}
+                    >
+                      <Text className="text-lg leading-none text-fg">+</Text>
+                    </Pressable>
+                  </View>
                 )}
               </View>
             )}
@@ -620,6 +646,59 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
     </Sheet>
   )
 })
+
+/**
+ * Card de toggle "Repetir" / "Parcelar" — espelha o PWA: ícone + rótulo à
+ * esquerda (com um resumo `· Mensal` / `· 3x` quando ligado e o painel fechado)
+ * e um switch fake à direita. Ocupa metade da linha (`flex-1`).
+ */
+function ToggleCard({
+  icon: Icon,
+  label,
+  tone,
+  active,
+  hint,
+  onPress,
+}: {
+  icon: LucideIcon
+  label: string
+  tone: string
+  active: boolean
+  hint?: string
+  onPress: () => void
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      className="flex-1 flex-row items-center justify-between rounded-xl px-4 py-3 active:opacity-80"
+      style={{ backgroundColor: active ? `${tone}1A` : colors.border }}
+    >
+      <View className="flex-row items-center gap-2">
+        <Icon size={16} color={active ? tone : colors.muted} />
+        <Text
+          className="text-sm font-medium"
+          style={{ color: active ? tone : colors.fg }}
+        >
+          {label}
+        </Text>
+        {hint && (
+          <Text className="text-xs" style={{ color: `${tone}B3` }}>
+            · {hint}
+          </Text>
+        )}
+      </View>
+      <View
+        className="h-5 w-9 flex-row items-center rounded-full px-0.5"
+        style={{
+          backgroundColor: active ? tone : colors.card,
+          justifyContent: active ? 'flex-end' : 'flex-start',
+        }}
+      >
+        <View className="h-4 w-4 rounded-full bg-white" />
+      </View>
+    </Pressable>
+  )
+}
 
 /**
  * Chip de seleção (categoria/carteira): mostra só o ícone; quando `expanded`,
