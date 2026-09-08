@@ -3,14 +3,22 @@ import { Animated, Modal, Platform } from 'react-native'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { router } from 'expo-router'
-import { Calendar, Check, Trash2, Wallet, type LucideIcon } from 'lucide-react-native'
+import {
+  Calendar,
+  Check,
+  Layers,
+  Repeat2,
+  Trash2,
+  Wallet,
+  type LucideIcon,
+} from 'lucide-react-native'
 
 import { View, Text, Pressable, ScrollView } from '#/tw'
 import { Sheet, SheetRef, BottomSheetScrollView, BottomSheetTextInput } from '#/components/ui/sheet'
 import { SheetField, inputStyle } from '#/components/ui/sheet-field'
 import { CurrencyInput } from '#/components/ui/currency-input'
 import { CATEGORY_ICONS } from '#/lib/category-icons'
-import { fmtDate, toYMD } from '#/lib/format'
+import { fmtBRL, fmtDate, tabularNums, toYMD } from '#/lib/format'
 import { colors } from '#/theme/colors'
 import { walletsQuery } from '#/api/wallets'
 import { categoriesQuery } from '#/api/categories'
@@ -18,6 +26,18 @@ import { createTransaction, editTransaction, deleteTransaction } from '#/api/tra
 import type { Transaction, TransactionType } from '#/schemas/transaction'
 
 type TxType = TransactionType
+
+type Interval = 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY' | 'YEARLY'
+
+const INTERVALS: { value: Interval; label: string }[] = [
+  { value: 'WEEKLY', label: 'Semanal' },
+  { value: 'BIWEEKLY', label: 'Quinzenal' },
+  { value: 'MONTHLY', label: 'Mensal' },
+  { value: 'YEARLY', label: 'Anual' },
+]
+
+const MIN_INSTALLMENTS = 2
+const MAX_INSTALLMENTS = 24
 
 type Props = { tx?: Transaction; onClose?: () => void; onCreated?: (date: Date) => void }
 
@@ -37,6 +57,12 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
   const [saved, setSaved] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [showDatePicker, setShowDatePicker] = useState(false)
+  const [recurring, setRecurring] = useState(false)
+  const [recurringOpen, setRecurringOpen] = useState(false)
+  const [interval, setInterval] = useState<Interval>('MONTHLY')
+  const [parceling, setParceling] = useState(false)
+  const [parcelingOpen, setParcelingOpen] = useState(false)
+  const [installments, setInstallments] = useState(MIN_INSTALLMENTS)
   // Qual chip está aberto (mostrando o nome). Abre ao tocar; recolhe pra só o
   // ícone quando o usuário toca em qualquer outro lugar do formulário.
   const [expandedCatId, setExpandedCatId] = useState<string | null>(null)
@@ -61,6 +87,12 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
     setShowDatePicker(false)
     setExpandedCatId(null)
     setExpandedWalletId(null)
+    setRecurring(false)
+    setRecurringOpen(false)
+    setInterval('MONTHLY')
+    setParceling(false)
+    setParcelingOpen(false)
+    setInstallments(MIN_INSTALLMENTS)
   }
 
   useEffect(() => {
@@ -76,6 +108,7 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
 
   function invalidate() {
     qc.invalidateQueries({ queryKey: ['transactions'] })
+    qc.invalidateQueries({ queryKey: ['transactions-max-date'] })
     qc.invalidateQueries({ queryKey: ['wallets'] })
     qc.invalidateQueries({ queryKey: ['dashboard'] })
   }
@@ -100,6 +133,9 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
             categoryId: categoryId ?? undefined,
             description: description.trim() || undefined,
             date: dateStr,
+            recurring: recurring || undefined,
+            interval: recurring ? interval : undefined,
+            installments: parceling ? installments : undefined,
           })
     },
     onSuccess: () => {
@@ -111,12 +147,14 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
   })
 
   const remove = useMutation({
-    mutationFn: () => deleteTransaction(tx!.id),
+    mutationFn: (mode?: 'this' | 'this-and-future' | 'all') => deleteTransaction(tx!.id, mode),
     onSuccess: () => {
       invalidate()
       ;(ref as React.RefObject<SheetRef>)?.current?.dismiss()
     },
   })
+
+  const isGroupTx = !!tx && (tx.isInstallment || tx.recurring || !!tx.parentId)
 
   const busy = save.isPending || remove.isPending || saved
 
@@ -179,30 +217,78 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
             </Pressable>
           </View>
         ) : confirmDelete ? (
-          <View className="items-center gap-4 py-6">
-            <Text className="text-sm text-fg">Excluir esta transação?</Text>
-            <Text className="text-center text-xs text-muted">
-              O saldo da carteira será revertido.
-            </Text>
-            <View className="flex-row gap-3">
+          isGroupTx ? (
+            <View className="gap-3 py-4">
+              <Text className="text-center text-sm text-fg">
+                {tx!.isInstallment ? 'Excluir parcelamento' : 'Excluir recorrência'}
+              </Text>
+              <Text className="text-center text-xs text-muted">
+                O saldo da carteira será revertido.
+              </Text>
+              <Pressable
+                onPress={() => remove.mutate('this')}
+                disabled={remove.isPending}
+                className="rounded-xl border border-border px-4 py-3.5 active:opacity-70"
+              >
+                <Text className="text-sm font-medium text-fg">
+                  {tx!.isInstallment ? 'Só esta parcela' : 'Só esta ocorrência'}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => remove.mutate('this-and-future')}
+                disabled={remove.isPending}
+                className="rounded-xl border border-border px-4 py-3.5 active:opacity-70"
+              >
+                <Text className="text-sm font-medium text-fg">
+                  {tx!.isInstallment ? 'Esta e as próximas' : 'Esta e as futuras'}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => remove.mutate('all')}
+                disabled={remove.isPending}
+                className="rounded-xl px-4 py-3.5 active:opacity-70"
+                style={{ backgroundColor: 'rgba(248,113,113,0.18)' }}
+              >
+                <Text className="text-sm font-medium" style={{ color: colors.negative }}>
+                  {tx!.isInstallment ? 'Todas as parcelas' : 'Toda a série'}
+                </Text>
+              </Pressable>
               <Pressable
                 onPress={() => setConfirmDelete(false)}
-                className="flex-1 rounded-xl border border-border py-3"
+                className="rounded-xl border border-border py-3"
               >
                 <Text className="text-center text-sm text-muted">Cancelar</Text>
               </Pressable>
-              <Pressable
-                onPress={() => remove.mutate()}
-                disabled={remove.isPending}
-                className="flex-1 rounded-xl py-3"
-                style={{ backgroundColor: 'rgba(248,113,113,0.18)' }}
-              >
-                <Text className="text-center text-sm font-medium" style={{ color: colors.negative }}>
-                  {remove.isPending ? 'Excluindo…' : 'Excluir'}
-                </Text>
-              </Pressable>
             </View>
-          </View>
+          ) : (
+            <View className="items-center gap-4 py-6">
+              <Text className="text-sm text-fg">Excluir esta transação?</Text>
+              <Text className="text-center text-xs text-muted">
+                O saldo da carteira será revertido.
+              </Text>
+              <View className="flex-row gap-3">
+                <Pressable
+                  onPress={() => setConfirmDelete(false)}
+                  className="flex-1 rounded-xl border border-border py-3"
+                >
+                  <Text className="text-center text-sm text-muted">Cancelar</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => remove.mutate(undefined)}
+                  disabled={remove.isPending}
+                  className="flex-1 rounded-xl py-3"
+                  style={{ backgroundColor: 'rgba(248,113,113,0.18)' }}
+                >
+                  <Text
+                    className="text-center text-sm font-medium"
+                    style={{ color: colors.negative }}
+                  >
+                    {remove.isPending ? 'Excluindo…' : 'Excluir'}
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          )
         ) : saved ? (
           <View className="items-center gap-3 py-8">
             <View
@@ -212,7 +298,11 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
               <Check size={28} color={colors.positive} strokeWidth={2.5} />
             </View>
             <Text className="text-sm font-medium text-muted">
-              {isEdit ? 'Transação atualizada' : 'Transação salva'}
+              {parceling
+                ? `${installments} parcelas criadas`
+                : isEdit
+                  ? 'Transação atualizada'
+                  : 'Transação salva'}
             </Text>
           </View>
         ) : (
@@ -236,6 +326,10 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
                       collapseChips()
                       setType(opt.value)
                       setCategoryId(null)
+                      if (opt.value === 'INCOME') {
+                        setParceling(false)
+                        setParcelingOpen(false)
+                      }
                     }}
                     className="flex-1 rounded-lg py-2"
                     style={{ backgroundColor: on ? `${opt.tone}26` : 'transparent' }}
@@ -420,6 +514,117 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
               onFocus={collapseChips}
             />
 
+            {/* Repetir / Parcelar — só na criação (espelha o PWA) */}
+            {!isEdit && (
+              <View className="gap-2">
+                <View className="flex-row gap-2">
+                  <ToggleCard
+                    icon={Repeat2}
+                    label="Repetir"
+                    tone={colors.accent}
+                    active={recurring}
+                    hint={
+                      recurring && !recurringOpen
+                        ? INTERVALS.find((i) => i.value === interval)?.label
+                        : undefined
+                    }
+                    onPress={() => {
+                      collapseChips()
+                      if (recurring) {
+                        setRecurring(false)
+                        setRecurringOpen(false)
+                      } else {
+                        setRecurring(true)
+                        setRecurringOpen(true)
+                        setParceling(false)
+                        setParcelingOpen(false)
+                      }
+                    }}
+                  />
+
+                  {type === 'EXPENSE' && (
+                    <ToggleCard
+                      icon={Layers}
+                      label="Parcelar"
+                      tone={colors.violet}
+                      active={parceling}
+                      hint={parceling && !parcelingOpen ? `${installments}x` : undefined}
+                      onPress={() => {
+                        collapseChips()
+                        if (parceling) {
+                          setParceling(false)
+                          setParcelingOpen(false)
+                        } else {
+                          setParceling(true)
+                          setParcelingOpen(true)
+                          setRecurring(false)
+                          setRecurringOpen(false)
+                        }
+                      }}
+                    />
+                  )}
+                </View>
+
+                {recurring && recurringOpen && (
+                  <View className="flex-row gap-2 pt-1">
+                    {INTERVALS.map((it) => {
+                      const on = interval === it.value
+                      return (
+                        <Pressable
+                          key={it.value}
+                          onPress={() => {
+                            setInterval(it.value)
+                            setRecurringOpen(false)
+                          }}
+                          className="flex-1 rounded-full py-1.5"
+                          style={{ backgroundColor: on ? colors.fg : colors.border }}
+                        >
+                          <Text
+                            className="text-center text-xs font-medium"
+                            style={{ color: on ? colors.bg : colors.muted }}
+                          >
+                            {it.label}
+                          </Text>
+                        </Pressable>
+                      )
+                    })}
+                  </View>
+                )}
+
+                {parceling && parcelingOpen && (
+                  <View
+                    className="mt-1 flex-row items-center gap-4 rounded-xl px-4 py-3"
+                    style={{ backgroundColor: colors.border }}
+                  >
+                    <Pressable
+                      onPress={() => setInstallments((n) => Math.max(MIN_INSTALLMENTS, n - 1))}
+                      className="h-8 w-8 items-center justify-center rounded-full active:opacity-70"
+                      style={{ backgroundColor: colors.card }}
+                    >
+                      <Text className="text-lg leading-none text-fg">−</Text>
+                    </Pressable>
+                    <View className="flex-1 items-center">
+                      <Text className="text-2xl font-bold text-fg" style={tabularNums}>
+                        {installments}x
+                      </Text>
+                      {cents > 0 && (
+                        <Text className="text-xs text-muted">
+                          de {fmtBRL(cents / 100 / installments)}
+                        </Text>
+                      )}
+                    </View>
+                    <Pressable
+                      onPress={() => setInstallments((n) => Math.min(MAX_INSTALLMENTS, n + 1))}
+                      className="h-8 w-8 items-center justify-center rounded-full active:opacity-70"
+                      style={{ backgroundColor: colors.card }}
+                    >
+                      <Text className="text-lg leading-none text-fg">+</Text>
+                    </Pressable>
+                  </View>
+                )}
+              </View>
+            )}
+
             {save.isError && (
               <Text className="text-center text-xs" style={{ color: colors.negative }}>
                 {save.error instanceof Error ? save.error.message : 'Erro ao salvar'}
@@ -442,6 +647,61 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
     </Sheet>
   )
 })
+
+/**
+ * Card de toggle "Repetir" / "Parcelar": ícone + rótulo à esquerda e um switch
+ * fake à direita. Quando ligado (e o painel fechado) o resumo `Mensal` / `3x`
+ * aparece numa segunda linha, abaixo do rótulo. Ocupa metade da linha (`flex-1`).
+ */
+function ToggleCard({
+  icon: Icon,
+  label,
+  tone,
+  active,
+  hint,
+  onPress,
+}: {
+  icon: LucideIcon
+  label: string
+  tone: string
+  active: boolean
+  hint?: string
+  onPress: () => void
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      className="flex-1 flex-row items-center justify-between rounded-xl px-4 py-3 active:opacity-80"
+      style={{ backgroundColor: active ? `${tone}1A` : colors.border }}
+    >
+      <View className="flex-row items-center gap-2">
+        <Icon size={16} color={active ? tone : colors.muted} />
+        <View>
+          <Text
+            className="text-sm font-medium"
+            style={{ color: active ? tone : colors.fg }}
+          >
+            {label}
+          </Text>
+          {hint && (
+            <Text className="text-xs" style={{ color: `${tone}B3` }}>
+              {hint}
+            </Text>
+          )}
+        </View>
+      </View>
+      <View
+        className="h-5 w-9 flex-row items-center rounded-full px-0.5"
+        style={{
+          backgroundColor: active ? tone : colors.card,
+          justifyContent: active ? 'flex-end' : 'flex-start',
+        }}
+      >
+        <View className="h-4 w-4 rounded-full bg-white" />
+      </View>
+    </Pressable>
+  )
+}
 
 /**
  * Chip de seleção (categoria/carteira): mostra só o ícone; quando `expanded`,

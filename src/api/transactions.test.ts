@@ -63,4 +63,25 @@ describe('mutations', () => {
     expect(init.method).toBe('DELETE')
     expect(fetchSpy.mock.calls[0][0]).toContain('/api/mobile/transactions/t1')
   })
+
+  it('createTransaction resolve null quando a resposta é null (parcelamento)', async () => {
+    jest.spyOn(globalThis, 'fetch').mockReturnValue(okJson(null))
+    await expect(
+      createTransaction({ walletId: 'w1', amount: 300, type: 'EXPENSE', installments: 3 }),
+    ).resolves.toBeNull()
+  })
+
+  it('deleteTransaction(id, mode) monta ?mode=', async () => {
+    const fetchSpy = jest.spyOn(globalThis, 'fetch').mockReturnValue(okJson(null))
+    await deleteTransaction('t1', 'all')
+    expect(fetchSpy.mock.calls[0][0]).toContain('/api/mobile/transactions/t1?mode=all')
+    expect((fetchSpy.mock.calls[0][1] as RequestInit).method).toBe('DELETE')
+  })
+
+  it('deleteTransaction(id) sem mode não põe query', async () => {
+    const fetchSpy = jest.spyOn(globalThis, 'fetch').mockReturnValue(okJson(null))
+    await deleteTransaction('t1')
+    expect(fetchSpy.mock.calls[0][0]).toContain('/api/mobile/transactions/t1')
+    expect(fetchSpy.mock.calls[0][0]).not.toContain('?mode=')
+  })
 })

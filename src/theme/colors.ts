@@ -9,6 +9,7 @@ export const colors = {
   fg: '#fafafa',
   muted: '#71717a',
   accent: '#60a5fa',
+  violet: '#c084fc',
   positive: '#34d399',
   negative: '#f87171',
 } as const

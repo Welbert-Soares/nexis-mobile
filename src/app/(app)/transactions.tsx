@@ -3,12 +3,24 @@ import { RefreshControl, SectionList } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useFocusEffect } from 'expo-router'
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChevronLeft, ChevronRight, TrendingDown, TrendingUp } from 'lucide-react-native'
+import {
+  ChevronLeft,
+  ChevronRight,
+  FilterX,
+  Layers,
+  SlidersHorizontal,
+  TrendingDown,
+  TrendingUp,
+  Wallet,
+  type LucideIcon,
+} from 'lucide-react-native'
 
-import { View, Text, Pressable } from '#/tw'
-import { monthTransactionsQuery } from '#/api/transactions'
+import { View, Text, Pressable, ScrollView } from '#/tw'
+import { monthTransactionsQuery, maxDateQuery } from '#/api/transactions'
+import { walletsQuery } from '#/api/wallets'
 import { fmtBRL, fmtDayGroup, tabularNums } from '#/lib/format'
 import { colors } from '#/theme/colors'
+import { CATEGORY_ICONS } from '#/lib/category-icons'
 import { TransactionRow } from '#/components/transactions/transaction-row'
 import { useTransactionSheet } from '#/components/transactions/transaction-sheet-context'
 import type { Transaction } from '#/schemas/transaction'
@@ -16,6 +28,14 @@ import type { Transaction } from '#/schemas/transaction'
 const MONTHS = [
   'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
   'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro',
+]
+
+type FilterType = 'ALL' | 'INCOME' | 'EXPENSE'
+
+const TYPE_FILTERS: { value: FilterType; label: string; icon: LucideIcon; tone?: string }[] = [
+  { value: 'ALL', label: 'Tudo', icon: Layers },
+  { value: 'INCOME', label: 'Receitas', icon: TrendingUp, tone: colors.positive },
+  { value: 'EXPENSE', label: 'Despesas', icon: TrendingDown, tone: colors.negative },
 ]
 
 export default function Transactions() {
@@ -34,8 +54,44 @@ export default function Transactions() {
   const txs = query.data ?? []
   const cold = query.isLoading && !query.data
 
+  const [filterType, setFilterType] = useState<FilterType>('ALL')
+  const [filterWalletId, setFilterWalletId] = useState<string | null>(null)
+  const [filterCategoryId, setFilterCategoryId] = useState<string | null>(null)
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [expandedChip, setExpandedChip] = useState<string | null>(null)
+
+  const { data: wallets = [] } = useQuery(walletsQuery)
+  const { data: maxDateStr } = useQuery(maxDateQuery)
+
+  const clearFilters = useCallback(() => {
+    setFilterType('ALL')
+    setFilterWalletId(null)
+    setFilterCategoryId(null)
+    setExpandedChip(null)
+  }, [])
+
   const today = new Date()
-  const isCurrentMonth = year === today.getFullYear() && month === today.getMonth() + 1
+
+  // Passado/presente: sempre. Futuro: até o mês da transação mais futura
+  // (parcelas/recorrências já lançadas). Se essa data não estiver disponível
+  // (rota ainda não publicada, query carregando/erro), libera uma janela de
+  // 24 meses — cobre 24x parcelas e recorrência anual.
+  const canGoNext = (() => {
+    const nextYear = month === 12 ? year + 1 : year
+    const nextMonth = month === 12 ? 1 : month + 1
+    if (
+      nextYear < today.getFullYear() ||
+      (nextYear === today.getFullYear() && nextMonth <= today.getMonth() + 1)
+    ) {
+      return true
+    }
+    const ceiling = maxDateStr
+      ? new Date(maxDateStr)
+      : new Date(today.getFullYear(), today.getMonth() + 24, 1)
+    const ceilYear = ceiling.getFullYear()
+    const ceilMonth = ceiling.getMonth() + 1
+    return nextYear < ceilYear || (nextYear === ceilYear && nextMonth <= ceilMonth)
+  })()
 
   // Ao voltar pra aba (ex.: depois de criar pelo FAB em outra aba), recarrega o
   // mês visível — a invalidação da mutation só refaz queries ativas.
@@ -55,6 +111,7 @@ export default function Transactions() {
   }, [createdMonth, consumeCreatedMonth])
 
   function shift(delta: number) {
+    if (delta > 0 && !canGoNext) return
     const d = new Date(year, month - 1 + delta, 1)
     setYM({ year: d.getFullYear(), month: d.getMonth() + 1 })
   }
@@ -70,7 +127,38 @@ export default function Transactions() {
     return { income, expenses }
   }, [txs])
 
-  const sections = useMemo(() => groupByDay(txs), [txs])
+  const categoriesInMonth = useMemo(() => {
+    const seen = new Map<
+      string,
+      { id: string; name: string; color: string | null; icon: string | null }
+    >()
+    for (const t of txs) {
+      if (t.categoryId && t.category && !seen.has(t.categoryId)) {
+        seen.set(t.categoryId, {
+          id: t.categoryId,
+          name: t.category.name,
+          color: t.category.color,
+          icon: t.category.icon,
+        })
+      }
+    }
+    return [...seen.values()].sort((a, b) => a.name.localeCompare(b.name))
+  }, [txs])
+
+  const filteredTxs = useMemo(
+    () =>
+      txs.filter(
+        (t) =>
+          (filterType === 'ALL' || t.type === filterType) &&
+          (!filterWalletId || t.walletId === filterWalletId) &&
+          (!filterCategoryId || t.categoryId === filterCategoryId),
+      ),
+    [txs, filterType, filterWalletId, filterCategoryId],
+  )
+
+  const hasActiveFilter = filterType !== 'ALL' || !!filterWalletId || !!filterCategoryId
+
+  const sections = useMemo(() => groupByDay(filteredTxs), [filteredTxs])
 
   return (
     <View className="flex-1 bg-bg" style={{ paddingTop: insets.top }}>
@@ -78,6 +166,7 @@ export default function Transactions() {
       <View className="gap-4 px-4 pb-4 pt-4">
         <View className="flex-row items-center justify-between">
           <Pressable
+            testID="month-prev"
             onPress={() => shift(-1)}
             className="h-9 w-9 items-center justify-center rounded-full bg-card active:opacity-70"
           >
@@ -87,10 +176,11 @@ export default function Transactions() {
             {MONTHS[month - 1]} {year}
           </Text>
           <Pressable
+            testID="month-next"
             onPress={() => shift(1)}
-            disabled={isCurrentMonth}
+            disabled={!canGoNext}
             className="h-9 w-9 items-center justify-center rounded-full bg-card active:opacity-70"
-            style={{ opacity: isCurrentMonth ? 0.35 : 1 }}
+            style={{ opacity: canGoNext ? 1 : 0.35 }}
           >
             <ChevronRight size={18} color={colors.fg} />
           </Pressable>
@@ -99,6 +189,132 @@ export default function Transactions() {
         <View className="flex-row gap-3">
           <SummaryCard label="Receitas" value={income} kind="in" loading={cold} />
           <SummaryCard label="Despesas" value={expenses} kind="out" loading={cold} />
+        </View>
+
+        {/* Filtros — colapsável (espelha o PWA) */}
+        <View>
+          <View className="flex-row items-center gap-3">
+            <Pressable
+              onPress={() => {
+                setFiltersOpen((o) => !o)
+                setExpandedChip(null)
+              }}
+              className="flex-row items-center gap-2 active:opacity-70"
+            >
+              <View>
+                <SlidersHorizontal size={16} color={hasActiveFilter ? colors.fg : colors.muted} />
+                {hasActiveFilter && (
+                  <View
+                    className="absolute h-1.5 w-1.5 rounded-full"
+                    style={{ top: -2, right: -2, backgroundColor: colors.accent }}
+                  />
+                )}
+              </View>
+              <Text
+                className="text-xs font-medium"
+                style={{ color: hasActiveFilter ? colors.fg : colors.muted }}
+              >
+                {filterSummary(
+                  filterType,
+                  filterWalletId,
+                  filterCategoryId,
+                  wallets,
+                  categoriesInMonth,
+                )}
+              </Text>
+              <View style={{ transform: [{ rotate: filtersOpen ? '-90deg' : '90deg' }] }}>
+                <ChevronRight size={13} color={colors.muted} />
+              </View>
+            </Pressable>
+            {hasActiveFilter && (
+              <Pressable
+                testID="filters-clear"
+                onPress={clearFilters}
+                className="p-0.5 active:opacity-60"
+              >
+                <FilterX size={14} color={colors.muted} />
+              </Pressable>
+            )}
+          </View>
+
+          {filtersOpen && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: 8, paddingRight: 4, paddingTop: 12, paddingBottom: 2 }}
+            >
+              {TYPE_FILTERS.map((f) => (
+                <FilterChip
+                  key={f.value}
+                  testID={`filter-type-${f.value}`}
+                  icon={f.icon}
+                  iconColor={f.tone}
+                  label={f.label}
+                  selected={filterType === f.value}
+                  expanded={expandedChip === `type-${f.value}`}
+                  onPress={() => {
+                    setFilterType(f.value)
+                    setExpandedChip((c) => (c === `type-${f.value}` ? null : `type-${f.value}`))
+                  }}
+                />
+              ))}
+
+              {wallets.length > 1 && (
+                <>
+                  <ChipDivider />
+                  <FilterChip
+                    testID="filter-wallet-all"
+                    icon={Wallet}
+                    label="Todas"
+                    selected={filterWalletId === null}
+                    expanded={expandedChip === 'wallet-all'}
+                    onPress={() => {
+                      setFilterWalletId(null)
+                      setExpandedChip((c) => (c === 'wallet-all' ? null : 'wallet-all'))
+                    }}
+                  />
+                  {wallets.map((w) => (
+                    <FilterChip
+                      key={w.id}
+                      testID={`filter-wallet-${w.id}`}
+                      icon={Wallet}
+                      iconColor={w.color ?? undefined}
+                      label={w.name}
+                      selected={filterWalletId === w.id}
+                      expanded={expandedChip === `wallet-${w.id}`}
+                      onPress={() => {
+                        setFilterWalletId((cur) => (cur === w.id ? null : w.id))
+                        setExpandedChip((c) => (c === `wallet-${w.id}` ? null : `wallet-${w.id}`))
+                      }}
+                    />
+                  ))}
+                </>
+              )}
+
+              {categoriesInMonth.length > 0 && (
+                <>
+                  <ChipDivider />
+                  {categoriesInMonth.map((c) => (
+                    <FilterChip
+                      key={c.id}
+                      testID={`filter-category-${c.id}`}
+                      icon={c.icon ? (CATEGORY_ICONS[c.icon] ?? null) : null}
+                      iconColor={c.color ?? undefined}
+                      label={c.name}
+                      selected={filterCategoryId === c.id}
+                      expanded={expandedChip === `category-${c.id}`}
+                      onPress={() => {
+                        setFilterCategoryId((cur) => (cur === c.id ? null : c.id))
+                        setExpandedChip((ec) =>
+                          ec === `category-${c.id}` ? null : `category-${c.id}`,
+                        )
+                      }}
+                    />
+                  ))}
+                </>
+              )}
+            </ScrollView>
+          )}
         </View>
       </View>
 
@@ -127,7 +343,9 @@ export default function Transactions() {
               onPress={item.isTransfer ? undefined : () => openEdit(item)}
             />
           )}
-          ListEmptyComponent={<EmptyState />}
+          ListEmptyComponent={
+            hasActiveFilter ? <EmptyFiltered onClear={clearFilters} /> : <EmptyState />
+          }
         />
       )}
     </View>
@@ -190,6 +408,85 @@ function EmptyState() {
       <Text className="text-sm text-muted">Nenhuma transação neste mês</Text>
       <Text className="text-xs text-muted/70">Toque em + para adicionar</Text>
     </View>
+  )
+}
+
+function EmptyFiltered({ onClear }: { onClear: () => void }) {
+  return (
+    <View className="mt-6 items-center gap-3 rounded-2xl border border-border bg-card py-12">
+      <Text className="text-sm text-muted">Nenhuma transação com esses filtros</Text>
+      <Pressable onPress={onClear} className="rounded-full bg-accent px-4 py-2 active:opacity-80">
+        <Text className="text-xs font-medium text-white">limpar filtros</Text>
+      </Pressable>
+    </View>
+  )
+}
+
+function filterSummary(
+  type: 'ALL' | 'INCOME' | 'EXPENSE',
+  walletId: string | null,
+  categoryId: string | null,
+  wallets: { id: string; name: string }[],
+  cats: { id: string; name: string }[],
+): string {
+  const parts = [
+    type === 'INCOME' ? 'Receitas' : type === 'EXPENSE' ? 'Despesas' : null,
+    walletId ? (wallets.find((w) => w.id === walletId)?.name ?? null) : null,
+    categoryId ? (cats.find((c) => c.id === categoryId)?.name ?? null) : null,
+  ].filter(Boolean)
+  return parts.length ? parts.join(' · ') : 'Filtros'
+}
+
+/** Separador vertical entre os grupos de chips (tipo | carteira | categoria). */
+function ChipDivider() {
+  return <View className="my-1 w-px shrink-0" style={{ backgroundColor: colors.border }} />
+}
+
+/**
+ * Chip de filtro: só o ícone por padrão; ao tocar, seleciona e revela o rótulo
+ * ao lado (`expanded`). Selecionado = fundo claro. Mesmo padrão dos chips de
+ * categoria/carteira do sheet.
+ */
+function FilterChip({
+  icon: Icon,
+  iconColor,
+  label,
+  selected,
+  expanded,
+  onPress,
+  testID,
+}: {
+  icon: LucideIcon | null
+  iconColor?: string
+  label: string
+  selected: boolean
+  expanded: boolean
+  onPress: () => void
+  testID?: string
+}) {
+  const mark = selected ? colors.bg : (iconColor ?? colors.muted)
+  return (
+    <Pressable
+      testID={testID}
+      onPress={onPress}
+      className="shrink-0 flex-row items-center rounded-full px-2.5 py-1.5"
+      style={{ backgroundColor: selected ? colors.fg : colors.border }}
+    >
+      {Icon ? (
+        <Icon size={14} color={mark} strokeWidth={2} />
+      ) : (
+        <View className="h-2 w-2 rounded-full" style={{ backgroundColor: mark }} />
+      )}
+      {expanded && (
+        <Text
+          numberOfLines={1}
+          className="ml-1.5 text-xs font-medium"
+          style={{ color: selected ? colors.bg : colors.muted }}
+        >
+          {label}
+        </Text>
+      )}
+    </Pressable>
   )
 }
 
