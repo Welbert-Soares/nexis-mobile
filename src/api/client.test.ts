@@ -31,6 +31,14 @@ describe('apiGet', () => {
     expect(init.credentials).toBe('omit')
   })
 
+  it('desativa o cache HTTP do fetch (no-store) pra nao servir GET velho', async () => {
+    const fetchSpy = jest.spyOn(globalThis, 'fetch').mockReturnValue(okJson({ n: 1 }))
+    await apiGet('/api/mobile/x', (raw) => raw)
+    const init = fetchSpy.mock.calls[0][1] as RequestInit
+    expect(init.cache).toBe('no-store')
+    expect((init.headers as Record<string, string>)['Cache-Control']).toBe('no-cache')
+  })
+
   it('joga ApiError com o status em resposta nao-ok', async () => {
     jest.spyOn(globalThis, 'fetch').mockReturnValue(errStatus(401))
     await expect(apiGet('/api/mobile/x', (r) => r)).rejects.toMatchObject({

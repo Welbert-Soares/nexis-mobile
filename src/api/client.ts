@@ -12,6 +12,17 @@ export class ApiError extends Error {
   }
 }
 
+// O `fetch` do React Native (NSURLSession no iOS, OkHttp no Android) mantém um
+// cache HTTP próprio e, sem isso, serve GETs de uma cópia local por vários
+// minutos — o TanStack Query refazia o refetch mas a rede devolvia o valor
+// velho (ex.: orçamento editado no PWA não aparecia no app). `no-store` +
+// headers no-cache forçam sempre ir na origem; o cache de verdade é o do
+// TanStack Query.
+const NO_STORE = {
+  cache: 'no-store' as RequestCache,
+  headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' } as Record<string, string>,
+}
+
 /**
  * Typed GET against the Nexis backend. Reads the Better Auth cookie from
  * SecureStore (via the expo plugin's `getCookie`, which is synchronous) and
@@ -20,10 +31,15 @@ export class ApiError extends Error {
  */
 export async function apiGet<T>(path: string, parse: (raw: unknown) => T): Promise<T> {
   const cookie = authClient.getCookie()
-  const res = await fetch(`${BASE}${path}`, {
+  // Cache-bust no próprio URL — no iOS/Android o `cache: 'no-store'` do fetch do
+  // RN nem sempre é respeitado; um param único garante que nunca volte do cache
+  // nativo. A queryKey do TanStack Query não passa por aqui, então não muda.
+  const sep = path.includes('?') ? '&' : '?'
+  const res = await fetch(`${BASE}${path}${sep}_=${Date.now()}`, {
     method: 'GET',
-    headers: { Cookie: cookie, Accept: 'application/json' },
+    headers: { ...NO_STORE.headers, Cookie: cookie, Accept: 'application/json' },
     credentials: 'omit',
+    cache: NO_STORE.cache,
   })
   if (!res.ok) {
     const body = await res.text().catch(() => '')
@@ -49,11 +65,13 @@ export async function apiSend<T = void>(
   const res = await fetch(`${BASE}${path}`, {
     method,
     headers: {
+      ...NO_STORE.headers,
       Cookie: cookie,
       Accept: 'application/json',
       ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
     },
     credentials: 'omit',
+    cache: NO_STORE.cache,
     body: body !== undefined ? JSON.stringify(body) : undefined,
   })
   if (!res.ok) {
