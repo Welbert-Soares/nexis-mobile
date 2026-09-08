@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useRef, useState } from 'react'
+import { forwardRef, useEffect, useMemo, useRef, useState } from 'react'
 import { Animated } from 'react-native'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Check, Trash2 } from 'lucide-react-native'
@@ -92,6 +92,13 @@ export const WalletSheet = forwardRef<SheetRef, Props>(function WalletSheet({ wa
   }, [iconsExpanded, reveal])
   const extraRowsHeight = reveal.interpolate({ inputRange: [0, 1], outputRange: [0, 240] })
   const fadeHintOpacity = reveal.interpolate({ inputRange: [0, 1], outputRange: [1, 0] })
+
+  // Recolhido, se o ícone selecionado está fora das 2 primeiras linhas ele
+  // sumiria — puxa ele pro começo pra continuar visível.
+  const orderedIcons = useMemo(() => {
+    if (iconsExpanded || !icon || ICON_OPTIONS.slice(0, 12).includes(icon)) return ICON_OPTIONS
+    return [icon, ...ICON_OPTIONS.filter((n) => n !== icon)]
+  }, [iconsExpanded, icon])
 
   function reset(w?: Wallet) {
     setName(w?.name ?? '')
@@ -310,7 +317,7 @@ export const WalletSheet = forwardRef<SheetRef, Props>(function WalletSheet({ wa
                 {/* Grid base (12) — tocar em qualquer lugar expande */}
                 <Pressable disabled={iconsExpanded} onPress={() => setIconsExpanded(true)}>
                   <View className="flex-row flex-wrap" style={{ marginHorizontal: -4 }}>
-                    {ICON_OPTIONS.slice(0, 12).map((n) => (
+                    {orderedIcons.slice(0, 12).map((n) => (
                       <IconCell
                         key={n}
                         name={n}
@@ -339,7 +346,7 @@ export const WalletSheet = forwardRef<SheetRef, Props>(function WalletSheet({ wa
                         className="flex-row flex-wrap"
                         style={{ marginHorizontal: -4, paddingTop: 8 }}
                       >
-                        {ICON_OPTIONS.slice(12).map((n) => (
+                        {orderedIcons.slice(12).map((n) => (
                           <IconCell
                             key={n}
                             name={n}

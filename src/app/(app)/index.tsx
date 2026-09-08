@@ -1,17 +1,19 @@
-import { useCallback } from 'react'
+import { useCallback, useRef } from 'react'
 import { RefreshControl } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useFocusEffect } from 'expo-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowRight, TrendingDown, TrendingUp, Wallet } from 'lucide-react-native'
 
-import { ScrollView, View, Text } from '#/tw'
+import { ScrollView, View, Text, Pressable } from '#/tw'
 import { Image } from '#/tw/image'
 import { dashboardQuery } from '#/api/dashboard'
 import { useAuthSession } from '#/auth/session'
 import { fmtBRL, fmtDate, tabularNums } from '#/lib/format'
 import { colors } from '#/theme/colors'
 import { CATEGORY_ICONS } from '#/lib/category-icons'
+import { ProfileSheet } from '#/components/profile/profile-sheet'
+import type { SheetRef } from '#/components/ui/sheet'
 import type { DashboardData } from '#/schemas/dashboard'
 
 type RecentTx = DashboardData['recent'][number]
@@ -32,8 +34,10 @@ export default function Dashboard() {
 
   const firstName = session?.user?.name?.split(' ')[0] ?? ''
   const cold = isLoading && !data
+  const profileRef = useRef<SheetRef>(null)
 
   return (
+    <>
     <ScrollView
       className="flex-1 bg-bg"
       contentContainerStyle={{
@@ -66,13 +70,15 @@ export default function Dashboard() {
           <Text className="text-xs text-muted">Saldo total · todas as carteiras</Text>
         </View>
 
-        {session?.user?.image ? (
-          <Image source={session.user.image} className="h-10 w-10 rounded-full" />
-        ) : (
-          <View className="h-10 w-10 items-center justify-center rounded-full bg-card">
-            <Text className="text-sm text-fg">{firstName.slice(0, 1).toUpperCase()}</Text>
-          </View>
-        )}
+        <Pressable onPress={() => profileRef.current?.present()} className="active:opacity-70">
+          {session?.user?.image ? (
+            <Image source={session.user.image} className="h-10 w-10 rounded-full" />
+          ) : (
+            <View className="h-10 w-10 items-center justify-center rounded-full bg-card">
+              <Text className="text-sm text-fg">{firstName.slice(0, 1).toUpperCase()}</Text>
+            </View>
+          )}
+        </Pressable>
       </View>
 
       {/* Onboarding OU resumo + recentes */}
@@ -102,6 +108,9 @@ export default function Dashboard() {
         </>
       )}
     </ScrollView>
+
+    <ProfileSheet ref={profileRef} />
+    </>
   )
 }
 
