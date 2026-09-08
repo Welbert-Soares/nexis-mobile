@@ -72,8 +72,10 @@ export default function Transactions() {
 
   const today = new Date()
 
-  // Deixa avançar pro passado/presente sempre; pro futuro, só até o mês da
-  // transação mais futura (parcelas/recorrências já lançadas).
+  // Passado/presente: sempre. Futuro: até o mês da transação mais futura
+  // (parcelas/recorrências já lançadas). Se essa data não estiver disponível
+  // (rota ainda não publicada, query carregando/erro), libera uma janela de
+  // 24 meses — cobre 24x parcelas e recorrência anual.
   const canGoNext = (() => {
     const nextYear = month === 12 ? year + 1 : year
     const nextMonth = month === 12 ? 1 : month + 1
@@ -83,11 +85,12 @@ export default function Transactions() {
     ) {
       return true
     }
-    if (!maxDateStr) return false
-    const max = new Date(maxDateStr)
-    const maxYear = max.getFullYear()
-    const maxMonth = max.getMonth() + 1
-    return nextYear < maxYear || (nextYear === maxYear && nextMonth <= maxMonth)
+    const ceiling = maxDateStr
+      ? new Date(maxDateStr)
+      : new Date(today.getFullYear(), today.getMonth() + 24, 1)
+    const ceilYear = ceiling.getFullYear()
+    const ceilMonth = ceiling.getMonth() + 1
+    return nextYear < ceilYear || (nextYear === ceilYear && nextMonth <= ceilMonth)
   })()
 
   // Ao voltar pra aba (ex.: depois de criar pelo FAB em outra aba), recarrega o

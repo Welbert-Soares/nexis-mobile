@@ -118,10 +118,12 @@ describe('Transactions screen', () => {
     expect(getByText(new RegExp(MONTHS_PT[MONTH - 1], 'i'))).toBeTruthy()
   })
 
-  it('não avança além do mês atual quando não há transação futura', () => {
+  it('avança pro mês seguinte pela janela de fallback quando não há max-date', () => {
+    const nextMonthFirst = new Date(YEAR, MONTH, 1, 12)
     const { getByTestId, getByText } = renderWith(FIXTURE) // max-date = null
+    qc.setQueryData(['transactions', nextMonthFirst.getFullYear(), nextMonthFirst.getMonth() + 1], [])
     fireEvent.press(getByTestId('month-next'))
-    expect(getByText(new RegExp(MONTHS_PT[MONTH - 1], 'i'))).toBeTruthy() // não mudou
+    expect(getByText(new RegExp(MONTHS_PT[MONTH % 12], 'i'))).toBeTruthy() // mês seguinte
   })
 
   it('avança pro mês seguinte quando há parcela/recorrência futura', () => {
@@ -129,8 +131,13 @@ describe('Transactions screen', () => {
     const { getByTestId, getByText } = renderWith(FIXTURE, nextMonthFirst.toISOString())
     qc.setQueryData(['transactions', nextMonthFirst.getFullYear(), nextMonthFirst.getMonth() + 1], [])
     fireEvent.press(getByTestId('month-next'))
-    const nextIdx = MONTH % 12 // índice 0-based do mês seguinte
-    expect(getByText(new RegExp(MONTHS_PT[nextIdx], 'i'))).toBeTruthy()
+    expect(getByText(new RegExp(MONTHS_PT[MONTH % 12], 'i'))).toBeTruthy()
+  })
+
+  it('respeita o teto de max-date: não avança pro futuro quando o max-date é hoje', () => {
+    const { getByTestId, getByText } = renderWith(FIXTURE, today.toISOString())
+    fireEvent.press(getByTestId('month-next'))
+    expect(getByText(new RegExp(MONTHS_PT[MONTH - 1], 'i'))).toBeTruthy() // não mudou
   })
 
   it('empty state quando não há transações', () => {
