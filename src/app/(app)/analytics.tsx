@@ -95,6 +95,7 @@ export default function AnalyticsScreen() {
               qc.invalidateQueries({ queryKey: ['analytics'] })
               qc.invalidateQueries({ queryKey: ['budgets'] })
             }}
+            progressViewOffset={insets.top + 8}
             tintColor={colors.muted}
             colors={[colors.muted]}
           />
@@ -157,7 +158,13 @@ export default function AnalyticsScreen() {
         budget={editing}
         month={budgetMonth}
         year={budgetYear}
-        onClose={() => setEditing(undefined)}
+        onClose={() => {
+          setEditing(undefined)
+          // Catch-all: garante o refetch da lista quando o sheet fecha, mesmo
+          // que a invalidação de dentro da mutation tenha corrido com o
+          // desmonte/re-render do sheet.
+          qc.invalidateQueries({ queryKey: ['budgets'] })
+        }}
       />
     </>
   )

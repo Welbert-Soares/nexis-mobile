@@ -10,7 +10,7 @@ type TrendItem = { month: string; income: number; expenses: number }
 
 const WITHIN_PAIR = 4 // gap Receita↔Despesa do mesmo mês
 const EDGE = 8 // respiro nas pontas
-const CHART_HEIGHT = 140
+const CHART_HEIGHT = 104
 
 // Tendência dos últimos 6 meses — pares de barras Receitas/Despesas por mês.
 // A largura das barras é derivada da largura real do card (medida via onLayout)

@@ -55,7 +55,7 @@ export const BudgetSheet = forwardRef<SheetRef, Props>(function BudgetSheet(
   const save = useMutation({
     mutationFn: () => saveBudget({ categoryId, month, year, amount: cents / 100 }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['budgets'] })
+      qc.invalidateQueries({ queryKey: ['budgets'], refetchType: 'all' })
       setSaved(true)
       setTimeout(dismiss, 900)
     },
@@ -64,7 +64,7 @@ export const BudgetSheet = forwardRef<SheetRef, Props>(function BudgetSheet(
   const remove = useMutation({
     mutationFn: () => removeBudget(budget!.id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['budgets'] })
+      qc.invalidateQueries({ queryKey: ['budgets'], refetchType: 'all' })
       dismiss()
     },
   })
@@ -118,6 +118,11 @@ export const BudgetSheet = forwardRef<SheetRef, Props>(function BudgetSheet(
                 </Text>
               </Pressable>
             </View>
+            {remove.isError && (
+              <Text className="text-xs" style={{ color: colors.negative }}>
+                Não foi possível remover. Tente de novo.
+              </Text>
+            )}
           </View>
         ) : saved ? (
           <View className="items-center gap-3 py-8">
@@ -180,6 +185,12 @@ export const BudgetSheet = forwardRef<SheetRef, Props>(function BudgetSheet(
                   })}
                 </View>
               </View>
+            )}
+
+            {save.isError && (
+              <Text className="text-xs" style={{ color: colors.negative }}>
+                Não foi possível salvar. Tente de novo.
+              </Text>
             )}
 
             <Pressable
