@@ -6,7 +6,7 @@ import { ArrowLeftRight, Plus, Wallet as WalletIcon } from 'lucide-react-native'
 
 import { ScrollView, View, Text, Pressable } from '#/tw'
 import { walletsQuery } from '#/api/wallets'
-import { fmtBRL } from '#/lib/format'
+import { fmtBRL, tabularNums } from '#/lib/format'
 import { colors } from '#/theme/colors'
 import type { Wallet } from '#/schemas/wallet'
 import { WalletCard } from '#/components/wallets/wallet-card'
@@ -32,7 +32,9 @@ export default function Wallets() {
     walletRef.current?.present()
   }
   function openEdit(w: Wallet) {
-    setEditing(w)
+    // objeto novo a cada abertura → o useEffect([wallet]) do sheet repopula
+    // mesmo reabrindo a mesma carteira sem refetch no meio.
+    setEditing({ ...w })
     walletRef.current?.present()
   }
 
@@ -61,9 +63,11 @@ export default function Wallets() {
           <View className="gap-1">
             <Text className="text-sm text-muted">Saldo total</Text>
             {cold ? (
-              <View className="h-9 w-40 rounded-lg bg-card" />
+              <View className="h-10 w-40 rounded-lg bg-card" />
             ) : (
-              <Text className="text-3xl font-bold text-fg">{fmtBRL(totalBalance)}</Text>
+              <Text className="text-4xl font-bold text-fg" style={tabularNums}>
+                {fmtBRL(totalBalance)}
+              </Text>
             )}
           </View>
 

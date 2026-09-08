@@ -1,4 +1,5 @@
-import { forwardRef, useEffect, useState } from 'react'
+import { forwardRef, useEffect, useRef, useState } from 'react'
+import { Animated, type TextInputProps } from 'react-native'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Check, Trash2 } from 'lucide-react-native'
 
@@ -17,16 +18,75 @@ const ICON_OPTIONS = [
   'Smartphone', 'Laptop', 'Zap', 'Heart', 'Star', 'MoreHorizontal',
 ].filter((n) => CATEGORY_ICONS[n])
 
+const ICON_COLS = 6
+const ICON_CELL_W = `${100 / ICON_COLS}%` as const
+
 type Props = { wallet?: Wallet; onClose?: () => void }
+
+function IconCell({
+  name,
+  selected,
+  tint,
+  onPress,
+}: {
+  name: string
+  selected: boolean
+  tint: string
+  onPress: () => void
+}) {
+  const Icon = CATEGORY_ICONS[name]
+  if (!Icon) return null
+  return (
+    <View style={{ width: ICON_CELL_W, padding: 4 }}>
+      <Pressable
+        onPress={onPress}
+        className="w-full items-center justify-center rounded-xl"
+        style={{
+          height: 40,
+          backgroundColor: selected ? `${tint}26` : colors.border,
+          borderWidth: 2,
+          borderColor: selected ? tint : 'transparent',
+        }}
+      >
+        <Icon size={18} color={selected ? tint : colors.muted} strokeWidth={1.75} />
+      </Pressable>
+    </View>
+  )
+}
 
 const inputStyle = {
   borderRadius: 12,
-  backgroundColor: colors.bg,
+  backgroundColor: colors.border,
   color: colors.fg,
   paddingHorizontal: 16,
   paddingVertical: 12,
   fontSize: 14,
+  // borda sempre presente (transparente) pra o foco não empurrar o layout
+  borderWidth: 1,
+  borderColor: 'transparent',
 } as const
+
+/**
+ * TextInput do sheet com indicador de foco (o RN não tem `:focus` de CSS).
+ * Borda neutra ao focar, como o `focus:ring` do PWA.
+ */
+function SheetField({ style, onFocus, onBlur, ...props }: TextInputProps) {
+  const [focused, setFocused] = useState(false)
+  return (
+    <BottomSheetTextInput
+      {...props}
+      onFocus={(e) => {
+        setFocused(true)
+        onFocus?.(e)
+      }}
+      onBlur={(e) => {
+        setFocused(false)
+        onBlur?.(e)
+      }}
+      style={[inputStyle, focused && { borderColor: colors.muted }, style]}
+    />
+  )
+}
 
 export const WalletSheet = forwardRef<SheetRef, Props>(function WalletSheet({ wallet, onClose }, ref) {
   const isEdit = !!wallet
@@ -43,6 +103,28 @@ export const WalletSheet = forwardRef<SheetRef, Props>(function WalletSheet({ wa
   const [dueDay, setDueDay] = useState('')
   const [saved, setSaved] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+
+  // Um único driver (0 = recolhido, 1 = expandido): anima a altura das linhas
+  // extras de ícone e faz o gradiente de fade sumir. O primeiro run apenas
+  // assenta o valor (sem timer) pra não animar na montagem.
+  const reveal = useRef(new Animated.Value(0)).current
+  const revealFirstRun = useRef(true)
+  useEffect(() => {
+    if (revealFirstRun.current) {
+      revealFirstRun.current = false
+      reveal.setValue(iconsExpanded ? 1 : 0)
+      return
+    }
+    const anim = Animated.timing(reveal, {
+      toValue: iconsExpanded ? 1 : 0,
+      duration: 200,
+      useNativeDriver: false,
+    })
+    anim.start()
+    return () => anim.stop()
+  }, [iconsExpanded, reveal])
+  const extraRowsHeight = reveal.interpolate({ inputRange: [0, 1], outputRange: [0, 240] })
+  const fadeHintOpacity = reveal.interpolate({ inputRange: [0, 1], outputRange: [1, 0] })
 
   function reset(w?: Wallet) {
     setName(w?.name ?? '')
@@ -99,8 +181,33 @@ export const WalletSheet = forwardRef<SheetRef, Props>(function WalletSheet({ wa
 
   const busy = save.isPending || remove.isPending || saved
 
+  // Em edição, só habilita "Salvar" se algo mudou (espelha o isDirty do PWA).
+  const isDirty =
+    !isEdit ||
+    name !== (wallet?.name ?? '') ||
+    type !== ((wallet?.type as WalletType) ?? 'CHECKING') ||
+    color !== (wallet?.color ?? WALLET_COLORS[0]) ||
+    icon !== (wallet?.icon ?? null) ||
+    (type === 'CREDIT' &&
+      (limitCents !== Math.round((wallet?.creditLimit ?? 0) * 100) ||
+        closingDay !== (wallet?.closingDay?.toString() ?? '') ||
+        dueDay !== (wallet?.dueDay?.toString() ?? '')))
+
+  const saveDisabled = busy || !name.trim() || !isDirty
+
   return (
-    <Sheet ref={ref} onDismiss={onClose}>
+    <Sheet
+      ref={ref}
+      // Reinicia o form ao fechar — assim a próxima abertura começa limpa.
+      // (O pai passa um objeto novo de `wallet` a cada abrir, então o
+      // useEffect([wallet]) repopula em modo edição.) Não usar onChange aqui:
+      // com enableDynamicSizing ele dispara a cada redimensionamento do sheet
+      // e apagava o confirmDelete no meio do fluxo de exclusão.
+      onDismiss={() => {
+        reset()
+        onClose?.()
+      }}
+    >
       <BottomSheetScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40, gap: 20 }}>
         <View className="flex-row items-center justify-between">
           <Text className="text-base font-semibold text-fg">
@@ -156,12 +263,11 @@ export const WalletSheet = forwardRef<SheetRef, Props>(function WalletSheet({ wa
           </View>
         ) : (
           <>
-            <BottomSheetTextInput
+            <SheetField
               placeholder="Nome da carteira"
               placeholderTextColor={colors.muted}
               value={name}
               onChangeText={setName}
-              style={inputStyle}
             />
 
             {!isEdit && (
@@ -181,7 +287,7 @@ export const WalletSheet = forwardRef<SheetRef, Props>(function WalletSheet({ wa
                       key={t.value}
                       onPress={() => setType(t.value)}
                       className="rounded-full px-3 py-1.5"
-                      style={{ backgroundColor: on ? colors.fg : colors.bg }}
+                      style={{ backgroundColor: on ? colors.fg : colors.border }}
                     >
                       <Text
                         className="text-xs font-medium"
@@ -209,24 +315,22 @@ export const WalletSheet = forwardRef<SheetRef, Props>(function WalletSheet({ wa
                 <View className="flex-row gap-3">
                   <View className="flex-1 gap-1.5">
                     <Text className="text-xs text-muted">Fechamento (dia)</Text>
-                    <BottomSheetTextInput
+                    <SheetField
                       placeholder="ex: 5"
                       placeholderTextColor={colors.muted}
                       keyboardType="number-pad"
                       value={closingDay}
                       onChangeText={setClosingDay}
-                      style={inputStyle}
                     />
                   </View>
                   <View className="flex-1 gap-1.5">
                     <Text className="text-xs text-muted">Vencimento (dia)</Text>
-                    <BottomSheetTextInput
+                    <SheetField
                       placeholder="ex: 15"
                       placeholderTextColor={colors.muted}
                       keyboardType="number-pad"
                       value={dueDay}
                       onChangeText={setDueDay}
-                      style={inputStyle}
                     />
                   </View>
                 </View>
@@ -235,33 +339,73 @@ export const WalletSheet = forwardRef<SheetRef, Props>(function WalletSheet({ wa
 
             <View className="gap-2">
               <Text className="text-xs text-muted">Ícone</Text>
-              <View className="flex-row flex-wrap gap-2">
-                {(iconsExpanded ? ICON_OPTIONS : ICON_OPTIONS.slice(0, 12)).map((n) => {
-                  const Icon = CATEGORY_ICONS[n]
-                  const on = icon === n
-                  return (
-                    <Pressable
-                      key={n}
-                      onPress={() => setIcon(on ? null : n)}
-                      className="h-10 w-10 items-center justify-center rounded-xl"
+              <View className="relative">
+                {/* Grid base (12) — tocar em qualquer lugar expande */}
+                <Pressable disabled={iconsExpanded} onPress={() => setIconsExpanded(true)}>
+                  <View className="flex-row flex-wrap" style={{ marginHorizontal: -4 }}>
+                    {ICON_OPTIONS.slice(0, 12).map((n) => (
+                      <IconCell
+                        key={n}
+                        name={n}
+                        selected={icon === n}
+                        tint={color}
+                        onPress={() => {
+                          if (!iconsExpanded) {
+                            setIconsExpanded(true)
+                            return
+                          }
+                          setIcon(icon === n ? null : n)
+                          setIconsExpanded(false)
+                        }}
+                      />
+                    ))}
+                  </View>
+                </Pressable>
+
+                {ICON_OPTIONS.length > 12 && (
+                  <>
+                    {/* Linhas extras — revelam com altura + fade */}
+                    <Animated.View
+                      style={{ maxHeight: extraRowsHeight, opacity: reveal, overflow: 'hidden' }}
+                    >
+                      <View
+                        className="flex-row flex-wrap"
+                        style={{ marginHorizontal: -4, paddingTop: 8 }}
+                      >
+                        {ICON_OPTIONS.slice(12).map((n) => (
+                          <IconCell
+                            key={n}
+                            name={n}
+                            selected={icon === n}
+                            tint={color}
+                            onPress={() => {
+                              setIcon(icon === n ? null : n)
+                              setIconsExpanded(false)
+                            }}
+                          />
+                        ))}
+                      </View>
+                    </Animated.View>
+
+                    {/* Gradiente na base enquanto recolhido — dica de "tem mais" */}
+                    <Animated.View
+                      pointerEvents="none"
                       style={{
-                        backgroundColor: on ? `${color}26` : colors.bg,
-                        borderWidth: 2,
-                        borderColor: on ? color : 'transparent',
+                        position: 'absolute',
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        height: 60,
+                        opacity: fadeHintOpacity,
                       }}
                     >
-                      <Icon size={16} color={on ? color : colors.muted} strokeWidth={1.75} />
-                    </Pressable>
-                  )
-                })}
+                      {[0, 0.04, 0.1, 0.18, 0.28, 0.4, 0.54, 0.7, 0.85, 1].map((o, i) => (
+                        <View key={i} style={{ flex: 1, backgroundColor: colors.card, opacity: o }} />
+                      ))}
+                    </Animated.View>
+                  </>
+                )}
               </View>
-              {ICON_OPTIONS.length > 12 && (
-                <Pressable onPress={() => setIconsExpanded((v) => !v)} className="self-start">
-                  <Text className="text-xs" style={{ color: colors.accent }}>
-                    {iconsExpanded ? 'ver menos' : 'ver mais'}
-                  </Text>
-                </Pressable>
-              )}
             </View>
 
             <View className="gap-2">
@@ -290,9 +434,9 @@ export const WalletSheet = forwardRef<SheetRef, Props>(function WalletSheet({ wa
 
             <Pressable
               onPress={() => save.mutate()}
-              disabled={busy || !name.trim()}
+              disabled={saveDisabled}
               className="rounded-xl py-4"
-              style={{ backgroundColor: colors.accent, opacity: busy || !name.trim() ? 0.5 : 1 }}
+              style={{ backgroundColor: colors.accent, opacity: saveDisabled ? 0.5 : 1 }}
             >
               <Text className="text-center text-sm font-semibold text-white">
                 {save.isPending ? 'Salvando…' : isEdit ? 'Salvar alterações' : 'Criar carteira'}
