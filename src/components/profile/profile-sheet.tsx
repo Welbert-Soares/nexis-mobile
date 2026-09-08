@@ -171,26 +171,30 @@ export const ProfileSheet = forwardRef<SheetRef, Props>(function ProfileSheet({ 
               {/* onLayout mede o conteúdo real pra a animação ir até a altura certa */}
               <View onLayout={onContentLayout}>
                 <View className="gap-3 pt-4">
-                  {/* Toggle tipo — estados ativos coloridos, igual ao PWA */}
+                  {/* Toggle tipo — segmented igual ao da criação de transação */}
                   <View className="flex-row rounded-xl p-1" style={{ backgroundColor: colors.border }}>
-                    {(['EXPENSE', 'INCOME'] as const).map((t) => {
-                      const on = catType === t
-                      const tone = t === 'EXPENSE' ? colors.negative : colors.positive
+                    {(
+                      [
+                        { value: 'EXPENSE', label: 'Despesas', tone: colors.negative },
+                        { value: 'INCOME', label: 'Receitas', tone: colors.positive },
+                      ] as const
+                    ).map((opt) => {
+                      const on = catType === opt.value
                       return (
                         <Pressable
-                          key={t}
+                          key={opt.value}
                           onPress={() => {
-                            setCatType(t)
+                            setCatType(opt.value)
                             setExpandedId(null)
                           }}
-                          className="flex-1 items-center rounded-lg py-1.5"
-                          style={{ backgroundColor: on ? `${tone}22` : 'transparent' }}
+                          className="flex-1 rounded-lg py-2"
+                          style={{ backgroundColor: on ? `${opt.tone}26` : 'transparent' }}
                         >
                           <Text
-                            className="text-xs font-medium"
-                            style={{ color: on ? tone : colors.muted }}
+                            className="text-center text-sm font-medium"
+                            style={{ color: on ? opt.tone : colors.muted }}
                           >
-                            {t === 'EXPENSE' ? 'Despesas' : 'Receitas'}
+                            {opt.label}
                           </Text>
                         </Pressable>
                       )
