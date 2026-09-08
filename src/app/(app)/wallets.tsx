@@ -32,7 +32,9 @@ export default function Wallets() {
     walletRef.current?.present()
   }
   function openEdit(w: Wallet) {
-    setEditing(w)
+    // objeto novo a cada abertura → o useEffect([wallet]) do sheet repopula
+    // mesmo reabrindo a mesma carteira sem refetch no meio.
+    setEditing({ ...w })
     walletRef.current?.present()
   }
 

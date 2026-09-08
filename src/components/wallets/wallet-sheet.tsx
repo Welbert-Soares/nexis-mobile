@@ -198,14 +198,14 @@ export const WalletSheet = forwardRef<SheetRef, Props>(function WalletSheet({ wa
   return (
     <Sheet
       ref={ref}
-      // Reinicia o form ao fechar (evita flash de estado antigo na reabertura)
-      // e ao abrir (repopula em edição, já que a ref de `wallet` pode não mudar).
+      // Reinicia o form ao fechar — assim a próxima abertura começa limpa.
+      // (O pai passa um objeto novo de `wallet` a cada abrir, então o
+      // useEffect([wallet]) repopula em modo edição.) Não usar onChange aqui:
+      // com enableDynamicSizing ele dispara a cada redimensionamento do sheet
+      // e apagava o confirmDelete no meio do fluxo de exclusão.
       onDismiss={() => {
         reset()
         onClose?.()
-      }}
-      onChange={(index) => {
-        if (index >= 0) reset(wallet)
       }}
     >
       <BottomSheetScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40, gap: 20 }}>
