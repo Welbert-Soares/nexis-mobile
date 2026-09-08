@@ -19,6 +19,7 @@ jest.mock('#/api/transactions', () => ({
     queryFn: jest.fn(),
     staleTime: Infinity,
   }),
+  maxDateQuery: { queryKey: ['transactions-max-date'], queryFn: jest.fn(), staleTime: Infinity },
 }))
 jest.mock('#/api/wallets', () => ({
   walletsQuery: { queryKey: ['wallets'], queryFn: jest.fn(), staleTime: Infinity },
@@ -66,14 +67,20 @@ const FIXTURE = [
   },
 ]
 
+const MONTHS_PT = [
+  'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+  'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro',
+]
+
 let qc: QueryClient
 afterEach(() => qc?.clear())
 
-function renderWith(data: unknown) {
+function renderWith(data: unknown, maxDate: string | null = null) {
   qc = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: Infinity, staleTime: Infinity } },
   })
   qc.setQueryData(['transactions', YEAR, MONTH], data)
+  qc.setQueryData(['transactions-max-date'], maxDate)
   qc.setQueryData(
     ['wallets'],
     [
@@ -107,12 +114,23 @@ describe('Transactions screen', () => {
   })
 
   it('mostra o mês atual no header', () => {
-    const MONTHS = [
-      'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
-      'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro',
-    ]
     const { getByText } = renderWith(FIXTURE)
-    expect(getByText(new RegExp(MONTHS[MONTH - 1], 'i'))).toBeTruthy()
+    expect(getByText(new RegExp(MONTHS_PT[MONTH - 1], 'i'))).toBeTruthy()
+  })
+
+  it('não avança além do mês atual quando não há transação futura', () => {
+    const { getByTestId, getByText } = renderWith(FIXTURE) // max-date = null
+    fireEvent.press(getByTestId('month-next'))
+    expect(getByText(new RegExp(MONTHS_PT[MONTH - 1], 'i'))).toBeTruthy() // não mudou
+  })
+
+  it('avança pro mês seguinte quando há parcela/recorrência futura', () => {
+    const nextMonthFirst = new Date(YEAR, MONTH, 1, 12) // MONTH é 1-based → mês seguinte
+    const { getByTestId, getByText } = renderWith(FIXTURE, nextMonthFirst.toISOString())
+    qc.setQueryData(['transactions', nextMonthFirst.getFullYear(), nextMonthFirst.getMonth() + 1], [])
+    fireEvent.press(getByTestId('month-next'))
+    const nextIdx = MONTH % 12 // índice 0-based do mês seguinte
+    expect(getByText(new RegExp(MONTHS_PT[nextIdx], 'i'))).toBeTruthy()
   })
 
   it('empty state quando não há transações', () => {

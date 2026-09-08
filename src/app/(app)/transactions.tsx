@@ -16,7 +16,7 @@ import {
 } from 'lucide-react-native'
 
 import { View, Text, Pressable, ScrollView } from '#/tw'
-import { monthTransactionsQuery } from '#/api/transactions'
+import { monthTransactionsQuery, maxDateQuery } from '#/api/transactions'
 import { walletsQuery } from '#/api/wallets'
 import { fmtBRL, fmtDayGroup, tabularNums } from '#/lib/format'
 import { colors } from '#/theme/colors'
@@ -61,6 +61,7 @@ export default function Transactions() {
   const [expandedChip, setExpandedChip] = useState<string | null>(null)
 
   const { data: wallets = [] } = useQuery(walletsQuery)
+  const { data: maxDateStr } = useQuery(maxDateQuery)
 
   const clearFilters = useCallback(() => {
     setFilterType('ALL')
@@ -70,7 +71,24 @@ export default function Transactions() {
   }, [])
 
   const today = new Date()
-  const isCurrentMonth = year === today.getFullYear() && month === today.getMonth() + 1
+
+  // Deixa avançar pro passado/presente sempre; pro futuro, só até o mês da
+  // transação mais futura (parcelas/recorrências já lançadas).
+  const canGoNext = (() => {
+    const nextYear = month === 12 ? year + 1 : year
+    const nextMonth = month === 12 ? 1 : month + 1
+    if (
+      nextYear < today.getFullYear() ||
+      (nextYear === today.getFullYear() && nextMonth <= today.getMonth() + 1)
+    ) {
+      return true
+    }
+    if (!maxDateStr) return false
+    const max = new Date(maxDateStr)
+    const maxYear = max.getFullYear()
+    const maxMonth = max.getMonth() + 1
+    return nextYear < maxYear || (nextYear === maxYear && nextMonth <= maxMonth)
+  })()
 
   // Ao voltar pra aba (ex.: depois de criar pelo FAB em outra aba), recarrega o
   // mês visível — a invalidação da mutation só refaz queries ativas.
@@ -90,6 +108,7 @@ export default function Transactions() {
   }, [createdMonth, consumeCreatedMonth])
 
   function shift(delta: number) {
+    if (delta > 0 && !canGoNext) return
     const d = new Date(year, month - 1 + delta, 1)
     setYM({ year: d.getFullYear(), month: d.getMonth() + 1 })
   }
@@ -144,6 +163,7 @@ export default function Transactions() {
       <View className="gap-4 px-4 pb-4 pt-4">
         <View className="flex-row items-center justify-between">
           <Pressable
+            testID="month-prev"
             onPress={() => shift(-1)}
             className="h-9 w-9 items-center justify-center rounded-full bg-card active:opacity-70"
           >
@@ -153,10 +173,11 @@ export default function Transactions() {
             {MONTHS[month - 1]} {year}
           </Text>
           <Pressable
+            testID="month-next"
             onPress={() => shift(1)}
-            disabled={isCurrentMonth}
+            disabled={!canGoNext}
             className="h-9 w-9 items-center justify-center rounded-full bg-card active:opacity-70"
-            style={{ opacity: isCurrentMonth ? 0.35 : 1 }}
+            style={{ opacity: canGoNext ? 1 : 0.35 }}
           >
             <ChevronRight size={18} color={colors.fg} />
           </Pressable>

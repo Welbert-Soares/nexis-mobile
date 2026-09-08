@@ -14,6 +14,18 @@ export const monthTransactionsQuery = (year: number, month: number) => ({
   gcTime: 5 * 60_000,
 })
 
+// Data da transação mais futura do usuário — libera a navegação de mês além do
+// mês atual (parcelas/recorrências caem em meses futuros).
+export const maxDateQuery = {
+  queryKey: ['transactions-max-date'] as const,
+  queryFn: () =>
+    apiGet('/api/mobile/transactions/max-date', (r) => {
+      const d = (r as { date?: unknown })?.date
+      return typeof d === 'string' ? d : null
+    }),
+  staleTime: 60_000,
+}
+
 // O POST do repo web não faz `include`, então o corpo não traz category/wallet
 // expandidos. Parse com `.partial()` e o app ignora o corpo (só confirma o ok);
 // a UI recarrega via invalidação.

@@ -108,6 +108,7 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
 
   function invalidate() {
     qc.invalidateQueries({ queryKey: ['transactions'] })
+    qc.invalidateQueries({ queryKey: ['transactions-max-date'] })
     qc.invalidateQueries({ queryKey: ['wallets'] })
     qc.invalidateQueries({ queryKey: ['dashboard'] })
   }
