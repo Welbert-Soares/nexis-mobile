@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { Redirect, Tabs } from 'expo-router'
 import { useQueryClient } from '@tanstack/react-query'
-import { ArrowLeftRight, LayoutDashboard, Wallet } from 'lucide-react-native'
+import { ArrowLeftRight, ChartColumnBig, LayoutDashboard, Wallet } from 'lucide-react-native'
 
 import { useAuthSession } from '#/auth/session'
 import { colors } from '#/theme/colors'
@@ -69,6 +69,13 @@ export default function AppLayout() {
           options={{
             title: 'Carteiras',
             tabBarIcon: ({ color, size }) => <Wallet color={color} size={size} />,
+          }}
+        />
+        <Tabs.Screen
+          name="analytics"
+          options={{
+            title: 'Análise',
+            tabBarIcon: ({ color, size }) => <ChartColumnBig color={color} size={size} />,
           }}
         />
       </Tabs>
