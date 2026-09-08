@@ -2,7 +2,6 @@
 
 # dependencies
 node_modules/
-.env
 
 # Expo
 .expo/
@@ -32,9 +31,8 @@ yarn-error.*
 *.pem
 
 # local env files
+.env
 .env*.local
-# .env is committed on purpose — it only holds the public EXPO_PUBLIC_API_URL
-!.env
 
 # typescript
 *.tsbuildinfo
