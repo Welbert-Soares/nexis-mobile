@@ -1,4 +1,4 @@
-import { CategoriesSchema } from './category'
+import { CategoriesSchema, CategoriesManagementSchema, CategoryInput } from './category'
 
 const GLOBAL = {
   id: 'c1',
@@ -32,5 +32,19 @@ describe('CategoriesSchema', () => {
 
   it('rejeita type fora do enum', () => {
     expect(() => CategoriesSchema.parse([{ ...GLOBAL, type: 'FOO' }])).toThrow()
+  })
+})
+
+describe('CategoriesManagementSchema', () => {
+  it('exige _count.transactions', () => {
+    const ok = CategoriesManagementSchema.parse([{ ...USER, _count: { transactions: 3 } }])
+    expect(ok[0]._count.transactions).toBe(3)
+    expect(() => CategoriesManagementSchema.parse([USER])).toThrow()
+  })
+})
+
+describe('CategoryInput', () => {
+  it('rejeita name vazio', () => {
+    expect(() => CategoryInput.parse({ name: '', color: '#f00', type: 'EXPENSE' })).toThrow()
   })
 })
