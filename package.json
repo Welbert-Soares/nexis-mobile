@@ -54,7 +54,11 @@
     "test": "jest"
   },
   "jest": {
-    "preset": "jest-expo"
+    "preset": "jest-expo",
+    "moduleNameMapper": {
+      "^#/(.*)$": "<rootDir>/src/$1",
+      "^@/(.*)$": "<rootDir>/src/$1"
+    }
   },
   "resolutions": {
     "lightningcss": "1.30.1"
