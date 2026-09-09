@@ -5,6 +5,7 @@ import { Redirect } from 'expo-router'
 import Svg, { Path } from 'react-native-svg'
 
 import { View, Text, Pressable } from '#/tw'
+import { Image } from '#/tw/image'
 import { signIn } from '#/auth/client'
 import { useAuthSession } from '#/auth/session'
 import { colors } from '#/theme/colors'
@@ -54,18 +55,12 @@ export default function Login() {
     >
       <View className="flex-1 justify-center">
         <Animated.View style={{ opacity: enter, transform: [{ translateY: lift }] }}>
-          {/* Marca: grade 2×2 — o "OS" que junta os estados do dinheiro. */}
-          <View
-            className="mb-6 flex-row flex-wrap"
-            style={{ width: 34, height: 34, gap: 6 }}
+          <Image
+            source={require('../../../assets/images/nexis-mark.webp')}
+            style={{ width: 60, height: 52, marginBottom: 20 }}
             accessibilityElementsHidden
             importantForAccessibility="no-hide-descendants"
-          >
-            <View style={{ width: 14, height: 14, borderRadius: 5, backgroundColor: colors.accent }} />
-            <View style={{ width: 14, height: 14, borderRadius: 5, backgroundColor: colors.violet }} />
-            <View style={{ width: 14, height: 14, borderRadius: 5, backgroundColor: colors.positive }} />
-            <View style={{ width: 14, height: 14, borderRadius: 5, backgroundColor: colors.border }} />
-          </View>
+          />
 
           <Text
             className="text-5xl font-bold text-fg"
