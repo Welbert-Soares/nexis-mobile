@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { RefreshControl, SectionList } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useFocusEffect } from 'expo-router'
@@ -8,21 +8,27 @@ import {
   ChevronRight,
   FilterX,
   Layers,
+  Search,
   SlidersHorizontal,
   TrendingDown,
   TrendingUp,
   Wallet,
+  X,
   type LucideIcon,
 } from 'lucide-react-native'
 
-import { View, Text, Pressable, ScrollView } from '#/tw'
-import { monthTransactionsQuery, maxDateQuery } from '#/api/transactions'
+import { View, Text, Pressable, ScrollView, TextInput } from '#/tw'
+import { monthTransactionsQuery, maxDateQuery, deleteTransaction } from '#/api/transactions'
 import { walletsQuery } from '#/api/wallets'
 import { fmtBRL, fmtDayGroup, tabularNums } from '#/lib/format'
 import { colors } from '#/theme/colors'
 import { CATEGORY_ICONS } from '#/lib/category-icons'
+import { useHaptic } from '#/lib/haptics'
 import { TransactionRow } from '#/components/transactions/transaction-row'
 import { useTransactionSheet } from '#/components/transactions/transaction-sheet-context'
+import { UndoToast } from '#/components/ui/undo-toast'
+import { DeleteModeSheet, type DeleteMode } from '#/components/transactions/delete-mode-sheet'
+import type { SheetRef } from '#/components/ui/sheet'
 import type { Transaction } from '#/schemas/transaction'
 
 const MONTHS = [
@@ -59,6 +65,70 @@ export default function Transactions() {
   const [filterCategoryId, setFilterCategoryId] = useState<string | null>(null)
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [expandedChip, setExpandedChip] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
+
+  const haptic = useHaptic()
+
+  // Exclusão com "Desfazer": a linha some na hora, mas o DELETE só vai ao
+  // servidor quando os 5s acabam. "Desfazer" cancela sem chamar o servidor.
+  const [pendingDelete, setPendingDelete] = useState<{ tx: Transaction; mode?: DeleteMode } | null>(
+    null,
+  )
+  const pendingRef = useRef<{ tx: Transaction; mode?: DeleteMode } | null>(null)
+  pendingRef.current = pendingDelete
+  const deleteTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const deleteModeRef = useRef<SheetRef>(null)
+  const [modeTarget, setModeTarget] = useState<Transaction | null>(null)
+
+  function flushPending() {
+    const p = pendingRef.current
+    if (deleteTimer.current) {
+      clearTimeout(deleteTimer.current)
+      deleteTimer.current = null
+    }
+    if (p) {
+      deleteTransaction(p.tx.id, p.mode).catch(() => {})
+      setPendingDelete(null)
+    }
+  }
+
+  function startPending(tx: Transaction, mode?: DeleteMode) {
+    flushPending()
+    haptic.error()
+    setPendingDelete({ tx, mode })
+    deleteTimer.current = setTimeout(() => {
+      deleteTransaction(tx.id, mode)
+        .catch(() => {})
+        .finally(() => {
+          qc.invalidateQueries({ queryKey: ['transactions'] })
+          qc.invalidateQueries({ queryKey: ['transactions-max-date'] })
+          qc.invalidateQueries({ queryKey: ['wallets'] })
+          qc.invalidateQueries({ queryKey: ['dashboard'] })
+        })
+      deleteTimer.current = null
+      setPendingDelete(null)
+    }, 5000)
+  }
+
+  function requestDelete(tx: Transaction) {
+    if (tx.isInstallment || tx.recurring || tx.parentId) {
+      setModeTarget(tx)
+      deleteModeRef.current?.present()
+    } else {
+      startPending(tx)
+    }
+  }
+
+  function undoDelete() {
+    if (deleteTimer.current) {
+      clearTimeout(deleteTimer.current)
+      deleteTimer.current = null
+    }
+    setPendingDelete(null)
+  }
+
+  // Drena um pendente ao desmontar (não deixa timer órfão).
+  useEffect(() => () => flushPending(), [])
 
   const { data: wallets = [] } = useQuery(walletsQuery)
   const { data: maxDateStr } = useQuery(maxDateQuery)
@@ -112,6 +182,7 @@ export default function Transactions() {
 
   function shift(delta: number) {
     if (delta > 0 && !canGoNext) return
+    flushPending()
     const d = new Date(year, month - 1 + delta, 1)
     setYM({ year: d.getFullYear(), month: d.getMonth() + 1 })
   }
@@ -158,7 +229,23 @@ export default function Transactions() {
 
   const hasActiveFilter = filterType !== 'ALL' || !!filterWalletId || !!filterCategoryId
 
-  const sections = useMemo(() => groupByDay(filteredTxs), [filteredTxs])
+  const q = search.trim().toLowerCase()
+  const searchedTxs = useMemo(() => {
+    if (!q) return filteredTxs
+    return filteredTxs.filter(
+      (t) =>
+        (t.description ?? '').toLowerCase().includes(q) ||
+        (t.category?.name ?? '').toLowerCase().includes(q) ||
+        t.wallet.name.toLowerCase().includes(q),
+    )
+  }, [filteredTxs, q])
+
+  const visibleTxs = useMemo(
+    () => (pendingDelete ? searchedTxs.filter((t) => t.id !== pendingDelete.tx.id) : searchedTxs),
+    [searchedTxs, pendingDelete],
+  )
+
+  const sections = useMemo(() => groupByDay(visibleTxs), [visibleTxs])
 
   return (
     <View className="flex-1 bg-bg" style={{ paddingTop: insets.top }}>
@@ -189,6 +276,28 @@ export default function Transactions() {
         <View className="flex-row gap-3">
           <SummaryCard label="Receitas" value={income} kind="in" loading={cold} />
           <SummaryCard label="Despesas" value={expenses} kind="out" loading={cold} />
+        </View>
+
+        {/* Busca — filtra o mês por descrição / categoria / carteira */}
+        <View
+          className="flex-row items-center gap-2 rounded-xl px-3"
+          style={{ backgroundColor: colors.border }}
+        >
+          <Search size={16} color={colors.muted} />
+          <TextInput
+            testID="tx-search"
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Buscar descrição, categoria, carteira"
+            placeholderTextColor={colors.muted}
+            className="flex-1 text-sm text-fg"
+            style={{ paddingVertical: 10 }}
+          />
+          {search !== '' && (
+            <Pressable onPress={() => setSearch('')} className="p-1 active:opacity-60">
+              <X size={14} color={colors.muted} />
+            </Pressable>
+          )}
         </View>
 
         {/* Filtros — colapsável (espelha o PWA) */}
@@ -341,13 +450,32 @@ export default function Transactions() {
             <TransactionRow
               tx={item}
               onPress={item.isTransfer ? undefined : () => openEdit(item)}
+              onSwipeDelete={item.isTransfer ? undefined : () => requestDelete(item)}
             />
           )}
           ListEmptyComponent={
-            hasActiveFilter ? <EmptyFiltered onClear={clearFilters} /> : <EmptyState />
+            q ? (
+              <EmptySearch />
+            ) : hasActiveFilter ? (
+              <EmptyFiltered onClear={clearFilters} />
+            ) : (
+              <EmptyState />
+            )
           }
         />
       )}
+
+      <UndoToast visible={!!pendingDelete} label="Transação excluída" onUndo={undoDelete} />
+
+      <DeleteModeSheet
+        ref={deleteModeRef}
+        tx={modeTarget}
+        onPick={(mode) => {
+          if (modeTarget) startPending(modeTarget, mode)
+          setModeTarget(null)
+        }}
+        onClose={() => setModeTarget(null)}
+      />
     </View>
   )
 }
@@ -407,6 +535,15 @@ function EmptyState() {
     <View className="mt-6 items-center gap-2 rounded-2xl border border-border bg-card py-12">
       <Text className="text-sm text-muted">Nenhuma transação neste mês</Text>
       <Text className="text-xs text-muted/70">Toque em + para adicionar</Text>
+    </View>
+  )
+}
+
+function EmptySearch() {
+  return (
+    <View className="mt-6 items-center gap-2 rounded-2xl border border-border bg-card py-12">
+      <Text className="text-sm text-muted">Nenhum resultado</Text>
+      <Text className="text-xs text-muted/70">Tente outros termos</Text>
     </View>
   )
 }

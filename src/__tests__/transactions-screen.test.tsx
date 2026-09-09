@@ -8,11 +8,33 @@ jest.mock('react-native-safe-area-context', () => ({
 }))
 jest.mock('#/tw', () => {
   const RN = require('react-native')
-  return { View: RN.View, Text: RN.Text, ScrollView: RN.ScrollView, Pressable: RN.Pressable }
+  return {
+    View: RN.View,
+    Text: RN.Text,
+    ScrollView: RN.ScrollView,
+    Pressable: RN.Pressable,
+    TextInput: RN.TextInput,
+  }
 })
 jest.mock('lucide-react-native', () => new Proxy({}, { get: () => () => null }))
 jest.mock('#/lib/category-icons', () => ({ CATEGORY_ICONS: {} }))
 jest.mock('expo-router', () => ({ useFocusEffect: () => {} }))
+// ReanimatedSwipeable puxa reanimated/worklets — não sobe no jest.
+jest.mock('react-native-gesture-handler/ReanimatedSwipeable', () => ({
+  __esModule: true,
+  default: ({ children }: { children: React.ReactNode }) => children,
+}))
+jest.mock('#/lib/haptics', () => ({
+  useHaptic: () => ({ tap: jest.fn(), success: jest.fn(), error: jest.fn(), heavy: jest.fn() }),
+}))
+jest.mock('#/components/transactions/delete-mode-sheet', () => ({ DeleteModeSheet: () => null }))
+jest.mock('#/components/ui/undo-toast', () => ({
+  UndoToast: ({ visible, label }: { visible: boolean; label: string }) => {
+    const React = require('react')
+    const RN = require('react-native')
+    return visible ? React.createElement(RN.Text, null, label) : null
+  },
+}))
 jest.mock('#/api/transactions', () => ({
   monthTransactionsQuery: (y: number, m: number) => ({
     queryKey: ['transactions', y, m],
@@ -171,5 +193,19 @@ describe('Transactions screen', () => {
     fireEvent.press(getByText('Filtros'))
     fireEvent.press(getByTestId('filter-type-EXPENSE'))
     expect(getByText('Nenhuma transação com esses filtros')).toBeTruthy()
+  })
+
+  it('busca filtra a lista por descrição', () => {
+    const { getByTestId, getByText, queryByText } = renderWith(FIXTURE)
+    expect(getByText('Salário')).toBeTruthy()
+    fireEvent.changeText(getByTestId('tx-search'), 'merc')
+    expect(getByText('Mercado')).toBeTruthy()
+    expect(queryByText('Salário')).toBeNull()
+  })
+
+  it('busca sem correspondência mostra "Nenhum resultado"', () => {
+    const { getByTestId, getByText } = renderWith(FIXTURE)
+    fireEvent.changeText(getByTestId('tx-search'), 'zzzzz')
+    expect(getByText('Nenhum resultado')).toBeTruthy()
   })
 })
