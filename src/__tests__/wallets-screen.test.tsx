@@ -1,7 +1,7 @@
 import { render } from '@testing-library/react-native'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
-import Wallets from '#/app/(app)/wallets'
+import Wallets from '#/app/(app)/wallets/index'
 
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
@@ -12,7 +12,7 @@ jest.mock('#/tw', () => {
 })
 jest.mock('lucide-react-native', () => new Proxy({}, { get: () => () => null }))
 jest.mock('#/lib/category-icons', () => ({ CATEGORY_ICONS: {} }))
-jest.mock('expo-router', () => ({ useFocusEffect: () => {} }))
+jest.mock('expo-router', () => ({ useFocusEffect: () => {}, useRouter: () => ({ push: jest.fn() }) }))
 jest.mock('#/api/wallets', () => ({
   walletsQuery: { queryKey: ['wallets'], queryFn: jest.fn(), staleTime: Infinity },
 }))

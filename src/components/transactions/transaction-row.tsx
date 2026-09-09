@@ -14,10 +14,12 @@ export function TransactionRow({
   tx,
   onPress,
   onSwipeDelete,
+  hideWallet,
 }: {
   tx: Transaction
   onPress?: () => void
   onSwipeDelete?: () => void
+  hideWallet?: boolean
 }) {
   const isExpense = tx.type === 'EXPENSE'
   const label = tx.description ?? tx.category?.name ?? 'Sem descrição'
@@ -48,7 +50,11 @@ export function TransactionRow({
           </Text>
           {isRecurringish && <Repeat2 size={12} color={colors.muted} />}
         </View>
-        <Text className="text-xs text-muted">{tx.wallet.name}</Text>
+        {!hideWallet ? (
+          <Text className="text-xs text-muted">{tx.wallet.name}</Text>
+        ) : tx.category?.name ? (
+          <Text className="text-xs text-muted">{tx.category.name}</Text>
+        ) : null}
       </View>
 
       <Text

@@ -100,8 +100,9 @@ export default function AppLayout() {
             tabBarIcon: ({ color, size }) => <ChartColumnBig color={color} size={size} />,
           }}
         />
-        {/* Metas — tela empilhada, aberta por router.push('/goals'). Não é aba. */}
+        {/* Telas empilhadas (router.push, não são abas). */}
         <Tabs.Screen name="goals" options={{ href: null }} />
+        <Tabs.Screen name="wallets/[id]" options={{ href: null }} />
       </Tabs>
     </TransactionSheetProvider>
   )
