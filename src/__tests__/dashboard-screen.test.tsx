@@ -54,6 +54,10 @@ jest.mock('lucide-react-native', () => ({
 
 jest.mock('#/lib/category-icons', () => ({ CATEGORY_ICONS: {} }))
 
+jest.mock('#/lib/haptics', () => ({
+  useHaptic: () => ({ tap: jest.fn(), success: jest.fn(), error: jest.fn(), heavy: jest.fn() }),
+}))
+
 const FIXTURE = {
   totalBalance: 2395,
   hasWallets: true,
@@ -90,11 +94,13 @@ function renderWith(data: unknown) {
 
 describe('Dashboard', () => {
   it('mostra saudação, receitas/despesas e as transações recentes', () => {
-    const { getByText } = renderWith(FIXTURE)
+    const { getByText, getByLabelText } = renderWith(FIXTURE)
     expect(getByText(/Olá, Welbert/)).toBeTruthy()
     expect(getByText('Receitas')).toBeTruthy()
     expect(getByText('Despesas')).toBeTruthy()
     expect(getByText('Salário')).toBeTruthy()
+    expect(getByLabelText('Abrir perfil')).toBeTruthy()
+    expect(getByLabelText(/Saldo total: R\$/)).toBeTruthy()
   })
 
   it('mostra o onboarding quando não há carteiras', () => {
