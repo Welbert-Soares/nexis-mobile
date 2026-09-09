@@ -4,7 +4,6 @@
   "version": "1.0.0",
   "dependencies": {
     "@better-auth/expo": "^1.6.11",
-    "@expo-google-fonts/manrope": "^0.4.2",
     "@expo/ui": "~57.0.16",
     "@gorhom/bottom-sheet": "^5.2.14",
     "@react-native-community/datetimepicker": "9.1.0",

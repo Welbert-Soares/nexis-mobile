@@ -3,7 +3,6 @@ import { Animated } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Redirect } from 'expo-router'
 import Svg, { Path } from 'react-native-svg'
-import { useFonts, Manrope_300Light } from '@expo-google-fonts/manrope'
 
 import { View, Text, Pressable } from '#/tw'
 import { Image } from '#/tw/image'
@@ -19,7 +18,6 @@ export default function Login() {
 
   const [loading, setLoading] = useState(false)
   const [failed, setFailed] = useState(false)
-  const [fontsLoaded] = useFonts({ Manrope_300Light })
 
   const enter = useRef(new Animated.Value(0)).current
   useEffect(() => {
@@ -65,14 +63,8 @@ export default function Login() {
               importantForAccessibility="no-hide-descendants"
             />
             <Text
-              className="text-fg"
-              style={{
-                fontSize: 40,
-                lineHeight: 44,
-                letterSpacing: 1,
-                fontFamily: fontsLoaded ? 'Manrope_300Light' : undefined,
-                fontWeight: fontsLoaded ? undefined : '300',
-              }}
+              className="text-5xl font-bold text-fg"
+              style={{ letterSpacing: -1.5 }}
               accessibilityRole="header"
               maxFontSizeMultiplier={1.3}
             >
