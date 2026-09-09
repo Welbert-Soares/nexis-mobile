@@ -9,9 +9,12 @@ import { ScrollView, View, Text, Pressable } from '#/tw'
 import { walletsQuery } from '#/api/wallets'
 import { fmtBRL, tabularNums } from '#/lib/format'
 import { colors } from '#/theme/colors'
+import { useHaptic } from '#/lib/haptics'
 import { WalletCard } from '#/components/wallets/wallet-card'
 import { WalletSheet } from '#/components/wallets/wallet-sheet'
 import { TransferSheet } from '#/components/wallets/transfer-sheet'
+import { Skeleton } from '#/components/ui/skeleton'
+import { EmptyState } from '#/components/ui/empty-state'
 import type { SheetRef } from '#/components/ui/sheet'
 
 export default function Wallets() {
@@ -32,6 +35,7 @@ export default function Wallets() {
 
   const walletRef = useRef<SheetRef>(null)
   const transferRef = useRef<SheetRef>(null)
+  const haptic = useHaptic()
 
   const totalBalance = wallets.reduce((acc, w) => acc + w.balance, 0)
 
@@ -52,7 +56,10 @@ export default function Wallets() {
         refreshControl={
           <RefreshControl
             refreshing={isFetching && !isLoading}
-            onRefresh={() => qc.invalidateQueries({ queryKey: ['wallets'] })}
+            onRefresh={() => {
+              haptic.tap()
+              qc.invalidateQueries({ queryKey: ['wallets'] })
+            }}
             tintColor={colors.muted}
             colors={[colors.muted]}
             progressViewOffset={insets.top + 8}
@@ -62,11 +69,18 @@ export default function Wallets() {
         {/* Header */}
         <View className="flex-row items-start justify-between">
           <View className="gap-1">
-            <Text className="text-sm text-muted">Saldo total</Text>
+            <Text className="text-sm text-muted" accessibilityRole="header">
+              Saldo total
+            </Text>
             {cold ? (
-              <View className="h-10 w-40 rounded-lg bg-card" />
+              <Skeleton style={{ height: 40, width: 160, borderRadius: 8 }} />
             ) : (
-              <Text className="text-4xl font-bold text-fg" style={tabularNums}>
+              <Text
+                className="text-4xl font-bold text-fg"
+                style={tabularNums}
+                maxFontSizeMultiplier={1.4}
+                accessibilityLabel={`Saldo total: ${fmtBRL(totalBalance)}`}
+              >
                 {fmtBRL(totalBalance)}
               </Text>
             )}
@@ -77,6 +91,9 @@ export default function Wallets() {
               <Pressable
                 testID="transfer-btn"
                 onPress={() => transferRef.current?.present()}
+                accessibilityRole="button"
+                accessibilityLabel="Transferir entre carteiras"
+                hitSlop={6}
                 className="h-10 w-10 items-center justify-center rounded-full bg-card active:opacity-70"
               >
                 <ArrowLeftRight size={16} color={colors.fg} />
@@ -84,6 +101,9 @@ export default function Wallets() {
             )}
             <Pressable
               onPress={openNew}
+              accessibilityRole="button"
+              accessibilityLabel="Nova carteira"
+              hitSlop={6}
               className="h-10 w-10 items-center justify-center rounded-full bg-card active:opacity-70"
             >
               <Plus size={20} color={colors.fg} />
@@ -94,17 +114,27 @@ export default function Wallets() {
         {/* Lista */}
         {cold ? (
           <View className="gap-3">
-            <View className="h-[72px] rounded-2xl bg-card" />
-            <View className="h-[72px] rounded-2xl bg-card" />
+            <Skeleton style={{ height: 72, borderRadius: 16 }} />
+            <Skeleton style={{ height: 72, borderRadius: 16 }} />
           </View>
         ) : wallets.length === 0 ? (
-          <EmptyState onAdd={openNew} />
+          <EmptyState
+            icon={WalletIcon}
+            title="Nenhuma carteira ainda"
+            description="Crie uma para começar a registrar transações"
+            action={{ label: 'Criar carteira', onPress: openNew }}
+          />
         ) : (
           <View className="gap-3">
             {wallets.map((w) => (
               <Pressable
                 key={w.id}
-                onPress={() => router.push({ pathname: '/wallets/[id]', params: { id: w.id } })}
+                onPress={() => {
+                  haptic.tap()
+                  router.push({ pathname: '/wallets/[id]', params: { id: w.id } })
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={`${w.name}, saldo ${fmtBRL(w.balance)}`}
                 className="active:opacity-80"
               >
                 <WalletCard wallet={w} />
@@ -117,22 +147,5 @@ export default function Wallets() {
       <WalletSheet ref={walletRef} />
       <TransferSheet ref={transferRef} wallets={wallets} />
     </>
-  )
-}
-
-function EmptyState({ onAdd }: { onAdd: () => void }) {
-  return (
-    <View className="items-center gap-4 rounded-2xl border border-border bg-card py-12">
-      <View className="h-12 w-12 items-center justify-center rounded-full bg-bg">
-        <WalletIcon size={24} color={colors.muted} strokeWidth={1.5} />
-      </View>
-      <View className="items-center gap-1">
-        <Text className="text-sm font-medium text-fg">Nenhuma carteira ainda</Text>
-        <Text className="text-xs text-muted">Crie uma para começar a registrar transações</Text>
-      </View>
-      <Pressable onPress={onAdd} className="rounded-full bg-accent px-5 py-2 active:opacity-80">
-        <Text className="text-sm font-medium text-white">Criar carteira</Text>
-      </Pressable>
-    </View>
   )
 }

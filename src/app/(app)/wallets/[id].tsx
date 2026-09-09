@@ -12,6 +12,7 @@ import { fmtBRL, tabularNums } from '#/lib/format'
 import { groupByDay } from '#/lib/tx-group'
 import { budgetBarColor } from '#/lib/analytics-calcs'
 import { colors } from '#/theme/colors'
+import { useHaptic } from '#/lib/haptics'
 import { WALLET_META, type WalletType } from '#/lib/wallet-meta'
 import { TransactionRow } from '#/components/transactions/transaction-row'
 import { useTransactionSheet } from '#/components/transactions/transaction-sheet-context'
@@ -19,6 +20,7 @@ import { WalletSheet } from '#/components/wallets/wallet-sheet'
 import { TransferSheet } from '#/components/wallets/transfer-sheet'
 import { ScreenEnter } from '#/components/ui/screen-enter'
 import { SummaryCard } from '#/components/ui/summary-card'
+import { EmptyState } from '#/components/ui/empty-state'
 import type { SheetRef } from '#/components/ui/sheet'
 
 const MONTHS = [
@@ -79,6 +81,7 @@ export default function WalletDetail() {
 
   const walletSheetRef = useRef<SheetRef>(null)
   const transferSheetRef = useRef<SheetRef>(null)
+  const haptic = useHaptic()
 
   const today = new Date()
   const canGoNext = (() => {
@@ -118,11 +121,23 @@ export default function WalletDetail() {
         {/* Header + herói */}
         <View className="gap-4 px-4 pb-4 pt-2">
           <View className="flex-row items-center gap-2">
-            <Pressable onPress={() => router.back()} className="p-1 active:opacity-60">
+            <Pressable
+              onPress={() => router.back()}
+              accessibilityRole="button"
+              accessibilityLabel="Voltar"
+              hitSlop={8}
+              className="p-1 active:opacity-60"
+            >
               <ChevronLeft size={24} color={colors.fg} />
             </Pressable>
             <View>
-              <Text className="text-base font-semibold text-fg">{wallet.name}</Text>
+              <Text
+                className="text-base font-semibold text-fg"
+                numberOfLines={1}
+                accessibilityRole="header"
+              >
+                {wallet.name}
+              </Text>
               <Text className="text-xs text-muted">
                 {WALLET_META[wallet.type as WalletType].label}
               </Text>
@@ -134,6 +149,8 @@ export default function WalletDetail() {
               <Text
                 className="text-4xl font-bold"
                 style={[tabularNums, { color: invoice > 0 ? colors.negative : colors.fg }]}
+                maxFontSizeMultiplier={1.4}
+                accessibilityLabel={`Fatura atual: ${fmtBRL(invoice)}`}
               >
                 {fmtBRL(invoice)}
               </Text>
@@ -159,6 +176,8 @@ export default function WalletDetail() {
               <Text
                 className="text-4xl font-bold"
                 style={[tabularNums, { color: wallet.color ?? colors.accent }]}
+                maxFontSizeMultiplier={1.4}
+                accessibilityLabel={`Saldo: ${fmtBRL(wallet.balance)}`}
               >
                 {fmtBRL(wallet.balance)}
               </Text>
@@ -181,7 +200,12 @@ export default function WalletDetail() {
           {/* Ações */}
           <View className="flex-row gap-3">
             <Pressable
-              onPress={() => walletSheetRef.current?.present()}
+              onPress={() => {
+                haptic.tap()
+                walletSheetRef.current?.present()
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Editar carteira"
               className="flex-row items-center gap-2 rounded-full bg-card px-4 py-2 active:opacity-70"
             >
               <Pencil size={14} color={colors.fg} />
@@ -189,7 +213,12 @@ export default function WalletDetail() {
             </Pressable>
             {wallets.length >= 2 && (
               <Pressable
-                onPress={() => transferSheetRef.current?.present()}
+                onPress={() => {
+                  haptic.tap()
+                  transferSheetRef.current?.present()
+                }}
+                accessibilityRole="button"
+                accessibilityLabel="Transferir entre carteiras"
                 className="flex-row items-center gap-2 rounded-full bg-card px-4 py-2 active:opacity-70"
               >
                 <ArrowLeftRight size={14} color={colors.fg} />
@@ -209,17 +238,28 @@ export default function WalletDetail() {
             <Pressable
               testID="wd-month-prev"
               onPress={() => shift(-1)}
+              accessibilityRole="button"
+              accessibilityLabel="Mês anterior"
+              hitSlop={8}
               className="h-9 w-9 items-center justify-center rounded-full bg-card active:opacity-70"
             >
               <ChevronLeft size={18} color={colors.fg} />
             </Pressable>
-            <Text className="text-sm font-semibold capitalize text-fg">
+            <Text
+              className="text-sm font-semibold capitalize text-fg"
+              accessibilityRole="header"
+              maxFontSizeMultiplier={1.4}
+            >
               {MONTHS[month - 1]} {year}
             </Text>
             <Pressable
               testID="wd-month-next"
               onPress={() => shift(1)}
               disabled={!canGoNext}
+              accessibilityRole="button"
+              accessibilityLabel="Próximo mês"
+              accessibilityState={{ disabled: !canGoNext }}
+              hitSlop={8}
               className="h-9 w-9 items-center justify-center rounded-full bg-card active:opacity-70"
               style={{ opacity: canGoNext ? 1 : 0.35 }}
             >
@@ -236,7 +276,10 @@ export default function WalletDetail() {
           refreshControl={
             <RefreshControl
               refreshing={txq.isFetching && !txq.isLoading}
-              onRefresh={() => qc.invalidateQueries({ queryKey: ['transactions', year, month] })}
+              onRefresh={() => {
+                haptic.tap()
+                qc.invalidateQueries({ queryKey: ['transactions', year, month] })
+              }}
               tintColor={colors.muted}
               colors={[colors.muted]}
             />
@@ -253,9 +296,11 @@ export default function WalletDetail() {
           )}
           ListEmptyComponent={
             cold ? null : (
-              <View className="mt-6 items-center gap-2 rounded-2xl border border-border bg-card py-12">
-                <Text className="text-sm text-muted">Sem movimentações em {MONTHS[month - 1]}</Text>
-                <Text className="text-xs text-muted/70">Toque em ＋ para registrar</Text>
+              <View className="mt-6">
+                <EmptyState
+                  title={`Sem movimentações em ${MONTHS[month - 1]}`}
+                  description="Toque em ＋ para registrar"
+                />
               </View>
             )
           }

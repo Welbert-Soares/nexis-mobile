@@ -18,6 +18,9 @@ jest.mock('#/api/wallets', () => ({
 }))
 jest.mock('#/components/wallets/wallet-sheet', () => ({ WalletSheet: () => null }))
 jest.mock('#/components/wallets/transfer-sheet', () => ({ TransferSheet: () => null }))
+jest.mock('#/lib/haptics', () => ({
+  useHaptic: () => ({ tap: jest.fn(), success: jest.fn(), error: jest.fn(), heavy: jest.fn() }),
+}))
 
 const CHECKING = {
   id: 'w1', name: 'Nubank', type: 'CHECKING', color: null, icon: null,
@@ -58,6 +61,13 @@ describe('Wallets screen', () => {
     expect(getByText('Nenhuma carteira ainda')).toBeTruthy()
     expect(getByText('Criar carteira')).toBeTruthy()
     expect(queryByText('Saldo total')).toBeTruthy()
+  })
+
+  it('expõe rótulos de acessibilidade nos botões do header', () => {
+    const { getByLabelText } = renderWith([CHECKING, CREDIT])
+    expect(getByLabelText('Nova carteira')).toBeTruthy()
+    expect(getByLabelText('Transferir entre carteiras')).toBeTruthy()
+    expect(getByLabelText(/Saldo total: R\$/)).toBeTruthy()
   })
 
   it('botão de transferência só aparece com 2+ carteiras', () => {
