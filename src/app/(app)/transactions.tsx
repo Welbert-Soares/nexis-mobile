@@ -20,7 +20,9 @@ import {
 import { View, Text, Pressable, ScrollView, TextInput } from '#/tw'
 import { monthTransactionsQuery, maxDateQuery, deleteTransaction } from '#/api/transactions'
 import { walletsQuery } from '#/api/wallets'
-import { fmtBRL, fmtDayGroup, tabularNums } from '#/lib/format'
+import { fmtBRL, tabularNums } from '#/lib/format'
+import { groupByDay } from '#/lib/tx-group'
+import { SummaryCard } from '#/components/ui/summary-card'
 import { colors } from '#/theme/colors'
 import { CATEGORY_ICONS } from '#/lib/category-icons'
 import { useHaptic } from '#/lib/haptics'
@@ -481,56 +483,6 @@ export default function Transactions() {
         }}
         onClose={() => setModeTarget(null)}
       />
-    </View>
-  )
-}
-
-type Section = { title: string; data: Transaction[] }
-
-function groupByDay(txs: Transaction[]): Section[] {
-  const map = new Map<string, Transaction[]>()
-  // txs já vêm ordenadas por data desc do backend.
-  for (const t of txs) {
-    const d = new Date(t.date)
-    const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
-    const bucket = map.get(key)
-    if (bucket) bucket.push(t)
-    else map.set(key, [t])
-  }
-  return Array.from(map.values()).map((data) => ({
-    title: fmtDayGroup(new Date(data[0].date)),
-    data,
-  }))
-}
-
-function SummaryCard({
-  label,
-  value,
-  kind,
-  loading,
-}: {
-  label: string
-  value: number
-  kind: 'in' | 'out'
-  loading: boolean
-}) {
-  const isIn = kind === 'in'
-  const Icon = isIn ? TrendingUp : TrendingDown
-  const tone = isIn ? colors.positive : colors.negative
-
-  return (
-    <View className="flex-1 gap-3 rounded-2xl border border-border bg-card p-4">
-      <View className="flex-row items-center gap-2">
-        <Icon color={tone} size={16} />
-        <Text className="text-xs text-muted">{label}</Text>
-      </View>
-      {loading ? (
-        <View className="h-6 w-24 rounded bg-bg" />
-      ) : (
-        <Text className="text-lg font-semibold" style={[tabularNums, { color: tone }]}>
-          {fmtBRL(value)}
-        </Text>
-      )}
     </View>
   )
 }
