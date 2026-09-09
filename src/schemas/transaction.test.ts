@@ -56,6 +56,12 @@ describe('TransactionsSchema', () => {
     const { wallet: _wallet, ...noWallet } = BASE
     expect(() => TransactionsSchema.parse([noWallet])).toThrow()
   })
+
+  it('aceita interval string, null e ausente', () => {
+    expect(TransactionsSchema.parse([{ ...BASE, interval: 'MONTHLY' }])[0].interval).toBe('MONTHLY')
+    expect(TransactionsSchema.parse([{ ...BASE, interval: null }])[0].interval).toBeNull()
+    expect(TransactionsSchema.parse([BASE])[0].interval).toBeUndefined()
+  })
 })
 
 describe('bodies', () => {
@@ -71,6 +77,15 @@ describe('bodies', () => {
     expect(
       TransactionEditInput.parse({ amount: 5, type: 'INCOME', categoryId: null, description: null }),
     ).toMatchObject({ categoryId: null, description: null })
+  })
+
+  it('TransactionEditInput aceita recurring/interval e rejeita interval fora do enum', () => {
+    expect(
+      TransactionEditInput.parse({ amount: 5, type: 'EXPENSE', recurring: true, interval: 'YEARLY' }),
+    ).toMatchObject({ recurring: true, interval: 'YEARLY' })
+    expect(() =>
+      TransactionEditInput.parse({ amount: 5, type: 'EXPENSE', interval: 'DAILY' }),
+    ).toThrow()
   })
 
   it('TransactionInput aceita recurring + interval', () => {

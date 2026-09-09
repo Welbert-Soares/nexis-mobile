@@ -3,6 +3,9 @@ import { z } from 'zod'
 const TX_TYPE = z.enum(['INCOME', 'EXPENSE'])
 export type TransactionType = z.infer<typeof TX_TYPE>
 
+const INTERVAL = z.enum(['WEEKLY', 'BIWEEKLY', 'MONTHLY', 'YEARLY'])
+export type RecurrenceInterval = z.infer<typeof INTERVAL>
+
 // Resposta de getTransactionsByMonth (repo web já converte Decimal → number).
 // z.object é não-strict: `parent`, `_count`, timestamps e outros campos do
 // Prisma passam sem quebrar.
@@ -27,6 +30,8 @@ export const TransactionSchema = z.object({
     color: z.string().nullable(),
   }),
   recurring: z.boolean(),
+  // o repo sempre manda (null ou valor); nullish pra não quebrar fixtures antigas
+  interval: INTERVAL.nullish(),
   parentId: z.string().nullable(),
   isInstallment: z.boolean(),
   isTransfer: z.boolean(),
@@ -55,5 +60,7 @@ export const TransactionEditInput = z.object({
   categoryId: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
   date: z.string().optional(),
+  recurring: z.boolean().optional(),
+  interval: INTERVAL.optional(),
 })
 export type TransactionEditData = z.infer<typeof TransactionEditInput>
