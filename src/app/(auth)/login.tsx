@@ -3,6 +3,7 @@ import { Animated } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Redirect } from 'expo-router'
 import Svg, { Path } from 'react-native-svg'
+import { useFonts, Manrope_300Light } from '@expo-google-fonts/manrope'
 
 import { View, Text, Pressable } from '#/tw'
 import { Image } from '#/tw/image'
@@ -18,6 +19,7 @@ export default function Login() {
 
   const [loading, setLoading] = useState(false)
   const [failed, setFailed] = useState(false)
+  const [fontsLoaded] = useFonts({ Manrope_300Light })
 
   const enter = useRef(new Animated.Value(0)).current
   useEffect(() => {
@@ -55,22 +57,29 @@ export default function Login() {
     >
       <View className="flex-1 justify-center">
         <Animated.View style={{ opacity: enter, transform: [{ translateY: lift }] }}>
-          <Image
-            source={require('../../../assets/images/nexis-mark.webp')}
-            style={{ width: 60, height: 52, marginBottom: 20 }}
-            accessibilityElementsHidden
-            importantForAccessibility="no-hide-descendants"
-          />
-
-          <Text
-            className="text-5xl font-bold text-fg"
-            style={{ letterSpacing: -1.5 }}
-            accessibilityRole="header"
-            maxFontSizeMultiplier={1.3}
-          >
-            Nexis
-          </Text>
-          <Text className="mt-3 text-base text-muted" style={{ lineHeight: 22, maxWidth: 300 }}>
+          <View className="flex-row items-center gap-3">
+            <Image
+              source={require('../../../assets/images/nexis-mark.webp')}
+              style={{ width: 42, height: 36 }}
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+            />
+            <Text
+              className="text-fg"
+              style={{
+                fontSize: 40,
+                lineHeight: 44,
+                letterSpacing: 1,
+                fontFamily: fontsLoaded ? 'Manrope_300Light' : undefined,
+                fontWeight: fontsLoaded ? undefined : '300',
+              }}
+              accessibilityRole="header"
+              maxFontSizeMultiplier={1.3}
+            >
+              Nexis
+            </Text>
+          </View>
+          <Text className="mt-4 text-base text-muted" style={{ lineHeight: 22, maxWidth: 300 }}>
             Contas, gastos, metas e orçamentos num só lugar.
           </Text>
         </Animated.View>
