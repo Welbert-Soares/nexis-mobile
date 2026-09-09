@@ -182,6 +182,7 @@ export default function Transactions() {
 
   function shift(delta: number) {
     if (delta > 0 && !canGoNext) return
+    haptic.tap()
     flushPending()
     const d = new Date(year, month - 1 + delta, 1)
     setYM({ year: d.getFullYear(), month: d.getMonth() + 1 })
@@ -362,6 +363,7 @@ export default function Transactions() {
                   selected={filterType === f.value}
                   expanded={expandedChip === `type-${f.value}`}
                   onPress={() => {
+                    haptic.tap()
                     setFilterType(f.value)
                     setExpandedChip((c) => (c === `type-${f.value}` ? null : `type-${f.value}`))
                   }}
@@ -378,6 +380,7 @@ export default function Transactions() {
                     selected={filterWalletId === null}
                     expanded={expandedChip === 'wallet-all'}
                     onPress={() => {
+                      haptic.tap()
                       setFilterWalletId(null)
                       setExpandedChip((c) => (c === 'wallet-all' ? null : 'wallet-all'))
                     }}
@@ -392,6 +395,7 @@ export default function Transactions() {
                       selected={filterWalletId === w.id}
                       expanded={expandedChip === `wallet-${w.id}`}
                       onPress={() => {
+                        haptic.tap()
                         setFilterWalletId((cur) => (cur === w.id ? null : w.id))
                         setExpandedChip((c) => (c === `wallet-${w.id}` ? null : `wallet-${w.id}`))
                       }}
@@ -413,6 +417,7 @@ export default function Transactions() {
                       selected={filterCategoryId === c.id}
                       expanded={expandedChip === `category-${c.id}`}
                       onPress={() => {
+                        haptic.tap()
                         setFilterCategoryId((cur) => (cur === c.id ? null : c.id))
                         setExpandedChip((ec) =>
                           ec === `category-${c.id}` ? null : `category-${c.id}`,

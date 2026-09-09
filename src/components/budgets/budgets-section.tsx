@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, Plus } from 'lucide-react-native'
 import { View, Text, Pressable } from '#/tw'
 import { fmtBudgetMonth } from '#/lib/format'
 import { colors } from '#/theme/colors'
+import { useHaptic } from '#/lib/haptics'
 import { BudgetRow } from '#/components/budgets/budget-row'
 import type { Budget } from '#/schemas/budget'
 
@@ -73,10 +74,14 @@ function RoundBtn({
   testID?: string
   children: React.ReactNode
 }) {
+  const haptic = useHaptic()
   return (
     <Pressable
       testID={testID}
-      onPress={onPress}
+      onPress={() => {
+        haptic.tap()
+        onPress()
+      }}
       disabled={disabled}
       className="h-7 w-7 items-center justify-center rounded-full bg-border active:opacity-70"
       style={{ opacity: disabled ? 0.3 : 1 }}

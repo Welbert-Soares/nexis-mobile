@@ -11,6 +11,7 @@ import { CurrencyInput } from '#/components/ui/currency-input'
 import { WALLET_COLORS } from '#/lib/wallet-meta'
 import { fmtDate, toYMD } from '#/lib/format'
 import { colors } from '#/theme/colors'
+import { useHaptic } from '#/lib/haptics'
 import { createGoal, editGoal, deleteGoal } from '#/api/goals'
 
 export type EditableGoal = {
@@ -26,6 +27,7 @@ type Props = { goal?: EditableGoal; onClose?: () => void }
 export const GoalSheet = forwardRef<SheetRef, Props>(function GoalSheet({ goal, onClose }, ref) {
   const isEdit = !!goal
   const qc = useQueryClient()
+  const haptic = useHaptic()
 
   const [name, setName] = useState('')
   const [targetCents, setTargetCents] = useState(0)
@@ -68,6 +70,7 @@ export const GoalSheet = forwardRef<SheetRef, Props>(function GoalSheet({ goal, 
           })
     },
     onSuccess: () => {
+      haptic.success()
       qc.invalidateQueries({ queryKey: ['goals'], refetchType: 'all' })
       setSaved(true)
       setTimeout(dismiss, 900)
@@ -77,6 +80,7 @@ export const GoalSheet = forwardRef<SheetRef, Props>(function GoalSheet({ goal, 
   const remove = useMutation({
     mutationFn: () => deleteGoal(goal!.id),
     onSuccess: () => {
+      haptic.error()
       qc.invalidateQueries({ queryKey: ['goals'], refetchType: 'all' })
       dismiss()
     },
