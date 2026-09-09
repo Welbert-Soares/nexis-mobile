@@ -29,7 +29,7 @@ export function SummaryCard({
         <Text className="text-xs text-muted">{label}</Text>
       </View>
       {loading ? (
-        <Skeleton style={{ height: 24, width: 96, borderRadius: 4, backgroundColor: colors.bg }} />
+        <Skeleton style={{ height: 24, width: 96, borderRadius: 4, backgroundColor: colors.border }} />
       ) : (
         <Text
           className="text-lg font-semibold"
