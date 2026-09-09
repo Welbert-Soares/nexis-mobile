@@ -281,7 +281,11 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
           // capturam os próprios toques e não disparam este onPress.
           <Pressable onPress={collapseChips} android_disableSound style={{ gap: 20 }}>
             {/* Tipo */}
-            <View className="flex-row rounded-xl p-1" style={{ backgroundColor: colors.border }}>
+            <View
+              accessibilityRole="radiogroup"
+              className="flex-row rounded-xl p-1"
+              style={{ backgroundColor: colors.border }}
+            >
               {(
                 [
                   { value: 'EXPENSE', label: 'Despesa', tone: colors.negative },
@@ -301,6 +305,9 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
                         setParcelingOpen(false)
                       }
                     }}
+                    accessibilityRole="radio"
+                    accessibilityLabel={opt.label}
+                    accessibilityState={{ checked: on }}
                     className="flex-1 rounded-lg py-2"
                     style={{ backgroundColor: on ? `${opt.tone}26` : 'transparent' }}
                   >
@@ -581,7 +588,11 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
                       <Text className="text-lg leading-none text-fg">−</Text>
                     </Pressable>
                     <View className="flex-1 items-center">
-                      <Text className="text-2xl font-bold text-fg" style={tabularNums}>
+                      <Text
+                        className="text-2xl font-bold text-fg"
+                        style={tabularNums}
+                        maxFontSizeMultiplier={1.4}
+                      >
                         {installments}x
                       </Text>
                       {cents > 0 && (
