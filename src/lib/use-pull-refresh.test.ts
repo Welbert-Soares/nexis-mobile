@@ -4,7 +4,7 @@ import { usePullRefresh } from '#/lib/use-pull-refresh'
 
 describe('usePullRefresh', () => {
   it('não gira em refetch de fundo (sem pull)', () => {
-    const { result, rerender } = renderHook(({ f }) => usePullRefresh(f, () => {}), {
+    const { result, rerender } = renderHook(({ f }: { f: boolean }) => usePullRefresh(f, () => {}), {
       initialProps: { f: false },
     })
     expect(result.current.refreshing).toBe(false)
@@ -16,7 +16,7 @@ describe('usePullRefresh', () => {
 
   it('gira quando o usuário puxa e para quando o refetch termina', () => {
     const onRefresh = jest.fn()
-    const { result, rerender } = renderHook(({ f }) => usePullRefresh(f, onRefresh), {
+    const { result, rerender } = renderHook(({ f }: { f: boolean }) => usePullRefresh(f, onRefresh), {
       initialProps: { f: false },
     })
     act(() => result.current.onRefresh())
