@@ -23,9 +23,12 @@ import { walletsQuery } from '#/api/wallets'
 import { fmtBRL, tabularNums } from '#/lib/format'
 import { groupByDay } from '#/lib/tx-group'
 import { SummaryCard } from '#/components/ui/summary-card'
+import { Skeleton } from '#/components/ui/skeleton'
+import { EmptyState } from '#/components/ui/empty-state'
 import { colors } from '#/theme/colors'
 import { CATEGORY_ICONS } from '#/lib/category-icons'
 import { useHaptic } from '#/lib/haptics'
+import { usePullRefresh } from '#/lib/use-pull-refresh'
 import { TransactionRow } from '#/components/transactions/transaction-row'
 import { useTransactionSheet } from '#/components/transactions/transaction-sheet-context'
 import { UndoToast } from '#/components/ui/undo-toast'
@@ -70,6 +73,11 @@ export default function Transactions() {
   const [search, setSearch] = useState('')
 
   const haptic = useHaptic()
+
+  const { refreshing, onRefresh } = usePullRefresh(query.isFetching, () => {
+    haptic.tap()
+    qc.invalidateQueries({ queryKey: ['transactions'] })
+  })
 
   // Exclusão com "Desfazer": a linha some na hora, mas o DELETE só vai ao
   // servidor quando os 5s acabam. "Desfazer" cancela sem chamar o servidor.
@@ -258,17 +266,28 @@ export default function Transactions() {
           <Pressable
             testID="month-prev"
             onPress={() => shift(-1)}
+            accessibilityRole="button"
+            accessibilityLabel="Mês anterior"
+            hitSlop={8}
             className="h-9 w-9 items-center justify-center rounded-full bg-card active:opacity-70"
           >
             <ChevronLeft size={18} color={colors.fg} />
           </Pressable>
-          <Text className="text-base font-semibold capitalize text-fg">
+          <Text
+            className="text-base font-semibold capitalize text-fg"
+            accessibilityRole="header"
+            maxFontSizeMultiplier={1.4}
+          >
             {MONTHS[month - 1]} {year}
           </Text>
           <Pressable
             testID="month-next"
             onPress={() => shift(1)}
             disabled={!canGoNext}
+            accessibilityRole="button"
+            accessibilityLabel="Próximo mês"
+            accessibilityState={{ disabled: !canGoNext }}
+            hitSlop={8}
             className="h-9 w-9 items-center justify-center rounded-full bg-card active:opacity-70"
             style={{ opacity: canGoNext ? 1 : 0.35 }}
           >
@@ -293,11 +312,18 @@ export default function Transactions() {
             onChangeText={setSearch}
             placeholder="Buscar descrição, categoria, carteira"
             placeholderTextColor={colors.muted}
+            accessibilityLabel="Buscar transações"
             className="flex-1 text-sm text-fg"
             style={{ paddingVertical: 10 }}
           />
           {search !== '' && (
-            <Pressable onPress={() => setSearch('')} className="p-1 active:opacity-60">
+            <Pressable
+              onPress={() => setSearch('')}
+              accessibilityRole="button"
+              accessibilityLabel="Limpar busca"
+              hitSlop={8}
+              className="p-1 active:opacity-60"
+            >
               <X size={14} color={colors.muted} />
             </Pressable>
           )}
@@ -311,6 +337,9 @@ export default function Transactions() {
                 setFiltersOpen((o) => !o)
                 setExpandedChip(null)
               }}
+              accessibilityRole="button"
+              accessibilityLabel={hasActiveFilter ? 'Filtros (ativos)' : 'Filtros'}
+              accessibilityState={{ expanded: filtersOpen }}
               className="flex-row items-center gap-2 active:opacity-70"
             >
               <View>
@@ -342,6 +371,9 @@ export default function Transactions() {
               <Pressable
                 testID="filters-clear"
                 onPress={clearFilters}
+                accessibilityRole="button"
+                accessibilityLabel="Limpar filtros"
+                hitSlop={8}
                 className="p-0.5 active:opacity-60"
               >
                 <FilterX size={14} color={colors.muted} />
@@ -444,8 +476,8 @@ export default function Transactions() {
           stickySectionHeadersEnabled={false}
           refreshControl={
             <RefreshControl
-              refreshing={query.isFetching && !query.isLoading}
-              onRefresh={() => qc.invalidateQueries({ queryKey: ['transactions'] })}
+              refreshing={refreshing}
+              onRefresh={onRefresh}
               tintColor={colors.muted}
               colors={[colors.muted]}
             />
@@ -461,13 +493,21 @@ export default function Transactions() {
             />
           )}
           ListEmptyComponent={
-            q ? (
-              <EmptySearch />
-            ) : hasActiveFilter ? (
-              <EmptyFiltered onClear={clearFilters} />
-            ) : (
-              <EmptyState />
-            )
+            <View className="mt-6">
+              {q ? (
+                <EmptyState title="Nenhum resultado" description="Tente outros termos" />
+              ) : hasActiveFilter ? (
+                <EmptyState
+                  title="Nenhuma transação com esses filtros"
+                  action={{ label: 'Limpar filtros', onPress: clearFilters }}
+                />
+              ) : (
+                <EmptyState
+                  title="Nenhuma transação neste mês"
+                  description="Toque em + para adicionar"
+                />
+              )}
+            </View>
           }
         />
       )}
@@ -483,35 +523,6 @@ export default function Transactions() {
         }}
         onClose={() => setModeTarget(null)}
       />
-    </View>
-  )
-}
-
-function EmptyState() {
-  return (
-    <View className="mt-6 items-center gap-2 rounded-2xl border border-border bg-card py-12">
-      <Text className="text-sm text-muted">Nenhuma transação neste mês</Text>
-      <Text className="text-xs text-muted/70">Toque em + para adicionar</Text>
-    </View>
-  )
-}
-
-function EmptySearch() {
-  return (
-    <View className="mt-6 items-center gap-2 rounded-2xl border border-border bg-card py-12">
-      <Text className="text-sm text-muted">Nenhum resultado</Text>
-      <Text className="text-xs text-muted/70">Tente outros termos</Text>
-    </View>
-  )
-}
-
-function EmptyFiltered({ onClear }: { onClear: () => void }) {
-  return (
-    <View className="mt-6 items-center gap-3 rounded-2xl border border-border bg-card py-12">
-      <Text className="text-sm text-muted">Nenhuma transação com esses filtros</Text>
-      <Pressable onPress={onClear} className="rounded-full bg-accent px-4 py-2 active:opacity-80">
-        <Text className="text-xs font-medium text-white">limpar filtros</Text>
-      </Pressable>
     </View>
   )
 }
@@ -563,6 +574,10 @@ function FilterChip({
     <Pressable
       testID={testID}
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ selected }}
+      hitSlop={6}
       className="shrink-0 flex-row items-center rounded-full px-2.5 py-1.5"
       style={{ backgroundColor: selected ? colors.fg : colors.border }}
     >
@@ -589,12 +604,12 @@ function ListSkeleton() {
     <View className="gap-1 px-4">
       {[0, 1, 2, 3, 4].map((i) => (
         <View key={i} className="flex-row items-center gap-3 rounded-xl px-1 py-2.5">
-          <View className="h-9 w-9 shrink-0 rounded-xl bg-card" />
+          <Skeleton style={{ height: 36, width: 36, borderRadius: 12 }} />
           <View className="flex-1 gap-1.5">
-            <View className="h-3.5 w-32 rounded bg-card" />
-            <View className="h-3 w-20 rounded bg-card opacity-60" />
+            <Skeleton style={{ height: 14, width: 128, borderRadius: 4 }} />
+            <Skeleton style={{ height: 12, width: 80, borderRadius: 4 }} />
           </View>
-          <View className="h-3.5 w-16 rounded bg-card" />
+          <Skeleton style={{ height: 14, width: 64, borderRadius: 4 }} />
         </View>
       ))}
     </View>

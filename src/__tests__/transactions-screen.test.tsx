@@ -140,6 +140,16 @@ describe('Transactions screen', () => {
     expect(getByText(new RegExp(MONTHS_PT[MONTH - 1], 'i'))).toBeTruthy()
   })
 
+  it('expõe rótulos de acessibilidade na navegação e nos filtros', () => {
+    const { getByLabelText, getByText, getByTestId } = renderWith(FIXTURE)
+    expect(getByLabelText('Mês anterior')).toBeTruthy()
+    expect(getByLabelText('Próximo mês')).toBeTruthy()
+    expect(getByLabelText('Buscar transações')).toBeTruthy()
+    fireEvent.press(getByText('Filtros'))
+    fireEvent.press(getByTestId('filter-type-EXPENSE'))
+    expect(getByLabelText('Limpar filtros')).toBeTruthy()
+  })
+
   it('avança pro mês seguinte pela janela de fallback quando não há max-date', () => {
     const nextMonthFirst = new Date(YEAR, MONTH, 1, 12)
     const { getByTestId, getByText } = renderWith(FIXTURE) // max-date = null

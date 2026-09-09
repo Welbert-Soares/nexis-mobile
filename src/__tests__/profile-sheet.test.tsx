@@ -74,4 +74,12 @@ describe('ProfileSheet', () => {
     const { getByText } = wrap(<ProfileSheet ref={ref} />)
     expect(getByText('Bloqueio do app')).toBeTruthy()
   })
+
+  it('expõe rótulos de acessibilidade', () => {
+    const ref = createRef<SheetRef>()
+    const { getByLabelText } = wrap(<ProfileSheet ref={ref} />)
+    expect(getByLabelText('Sair da conta')).toBeTruthy()
+    expect(getByLabelText('Bloqueio do app')).toBeTruthy()
+    expect(getByLabelText('Categorias')).toBeTruthy()
+  })
 })

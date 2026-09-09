@@ -42,6 +42,9 @@ jest.mock('#/components/ui/screen-enter', () => ({
 jest.mock('#/components/transactions/transaction-sheet-context', () => ({
   useTransactionSheet: () => ({ openEdit: jest.fn() }),
 }))
+jest.mock('#/lib/haptics', () => ({
+  useHaptic: () => ({ tap: jest.fn(), success: jest.fn(), error: jest.fn(), heavy: jest.fn() }),
+}))
 
 const W1 = {
   id: 'w1', name: 'Nubank', type: 'CHECKING', color: '#8b5cf6', icon: null,
@@ -86,11 +89,13 @@ function renderWith(wallets: unknown, txs: unknown) {
 
 describe('WalletDetail', () => {
   it('herói: nome + saldo da carteira', () => {
-    const { getByText } = renderWith([W1, W2], [TX_W1, TX_W2])
+    const { getByText, getByLabelText } = renderWith([W1, W2], [TX_W1, TX_W2])
     expect(getByText('Nubank')).toBeTruthy()
     expect(getByText('R$ 1.500,00')).toBeTruthy()
     expect(getByText('Entradas')).toBeTruthy()
     expect(getByText('Saídas')).toBeTruthy()
+    expect(getByLabelText('Voltar')).toBeTruthy()
+    expect(getByLabelText('Saldo: R$ 1.500,00')).toBeTruthy()
   })
 
   it('lista só as transações da carteira', () => {

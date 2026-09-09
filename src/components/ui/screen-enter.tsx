@@ -1,14 +1,20 @@
 import { useEffect, useRef, type ReactNode } from 'react'
-import { Animated } from 'react-native'
+import { Animated, View } from 'react-native'
+
+import { useReduceMotion } from '#/lib/reduce-motion'
 
 // Micro-animação de entrada pra telas empilhadas (sem push nativo). Fade +
-// slide sutil de baixo pra cima, uma vez no mount.
+// slide sutil de baixo pra cima, uma vez no mount. Respeita "Reduzir movimento".
 export function ScreenEnter({ children }: { children: ReactNode }) {
+  const reduce = useReduceMotion()
   const v = useRef(new Animated.Value(0)).current
 
   useEffect(() => {
+    if (reduce) return
     Animated.timing(v, { toValue: 1, duration: 180, useNativeDriver: true }).start()
-  }, [v])
+  }, [reduce, v])
+
+  if (reduce) return <View style={{ flex: 1 }}>{children}</View>
 
   return (
     <Animated.View

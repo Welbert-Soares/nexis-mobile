@@ -23,4 +23,12 @@ describe('UndoToast', () => {
     fireEvent.press(getByText('Desfazer'))
     expect(onUndo).toHaveBeenCalledTimes(1)
   })
+
+  it('anuncia como live region pro leitor de tela', () => {
+    const { getByLabelText } = render(
+      <UndoToast visible label="Transação excluída" onUndo={() => {}} />,
+    )
+    const node = getByLabelText('Transação excluída. Toque em desfazer.')
+    expect(node.props.accessibilityLiveRegion).toBe('polite')
+  })
 })

@@ -28,6 +28,10 @@ export function TransactionRow({
   const isRecurringish = tx.recurring || !!tx.parentId
   const swipeRef = useRef<SwipeMethods>(null)
 
+  const a11yLabel = `${label}, ${isExpense ? 'saída' : 'entrada'} de ${fmtBRL(tx.amount)}${
+    hideWallet ? '' : `, ${tx.wallet.name}`
+  }`
+
   const inner = (
     <>
       <View
@@ -70,12 +74,20 @@ export function TransactionRow({
   const body = onPress ? (
     <Pressable
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={a11yLabel}
       className="flex-row items-center gap-3 rounded-xl px-1 py-2.5 active:opacity-70"
     >
       {inner}
     </Pressable>
   ) : (
-    <View className="flex-row items-center gap-3 rounded-xl px-1 py-2.5">{inner}</View>
+    <View
+      accessible
+      accessibilityLabel={a11yLabel}
+      className="flex-row items-center gap-3 rounded-xl px-1 py-2.5"
+    >
+      {inner}
+    </View>
   )
 
   // Transferência é read-only; sem swipe.
@@ -93,6 +105,9 @@ export function TransactionRow({
             swipeRef.current?.close()
             onSwipeDelete()
           }}
+          accessibilityRole="button"
+          accessibilityLabel="Excluir transação"
+          hitSlop={8}
           className="my-1 items-center justify-center rounded-xl"
           style={{ width: 88, backgroundColor: 'rgba(248,113,113,0.18)' }}
         >

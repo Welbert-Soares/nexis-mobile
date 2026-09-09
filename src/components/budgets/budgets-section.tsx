@@ -29,19 +29,29 @@ export function BudgetsSection({
   return (
     <View className="gap-3">
       <View className="flex-row items-center justify-between">
-        <Text className="text-xs font-medium uppercase tracking-widest text-muted">Orçamentos</Text>
+        <Text
+          className="text-xs font-medium uppercase tracking-widest text-muted"
+          accessibilityRole="header"
+        >
+          Orçamentos
+        </Text>
         <View className="flex-row items-center gap-1">
-          <RoundBtn onPress={onPrev} testID="budget-month-prev">
+          <RoundBtn onPress={onPrev} testID="budget-month-prev" a11yLabel="Mês anterior">
             <ChevronLeft size={14} color={colors.muted} />
           </RoundBtn>
           <Text className="text-center text-xs text-muted" style={{ minWidth: 72 }}>
             {fmtBudgetMonth(year, month)}
           </Text>
-          <RoundBtn onPress={onNext} disabled={isCurrentMonth} testID="budget-month-next">
+          <RoundBtn
+            onPress={onNext}
+            disabled={isCurrentMonth}
+            testID="budget-month-next"
+            a11yLabel="Próximo mês"
+          >
             <ChevronRight size={14} color={colors.muted} />
           </RoundBtn>
           {isCurrentMonth && (
-            <RoundBtn onPress={onNew} testID="budget-new">
+            <RoundBtn onPress={onNew} testID="budget-new" a11yLabel="Novo orçamento">
               <Plus size={14} color={colors.muted} />
             </RoundBtn>
           )}
@@ -67,11 +77,13 @@ function RoundBtn({
   onPress,
   disabled,
   testID,
+  a11yLabel,
   children,
 }: {
   onPress: () => void
   disabled?: boolean
   testID?: string
+  a11yLabel?: string
   children: React.ReactNode
 }) {
   const haptic = useHaptic()
@@ -83,6 +95,10 @@ function RoundBtn({
         onPress()
       }}
       disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={a11yLabel}
+      accessibilityState={{ disabled: !!disabled }}
+      hitSlop={8}
       className="h-7 w-7 items-center justify-center rounded-full bg-border active:opacity-70"
       style={{ opacity: disabled ? 0.3 : 1 }}
     >

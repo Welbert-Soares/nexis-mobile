@@ -30,7 +30,12 @@ export function BudgetRow({
   }, [progress, width])
 
   return (
-    <Pressable onPress={() => onPress(budget)} className="gap-1.5 active:opacity-70">
+    <Pressable
+      onPress={() => onPress(budget)}
+      accessibilityRole="button"
+      accessibilityLabel={`${budget.categoryName}: ${fmtBRL(budget.spent)} de ${fmtBRL(budget.limit)}. Editar orçamento.`}
+      className="gap-1.5 active:opacity-70"
+    >
       <View className="flex-row items-center justify-between gap-2">
         <View className="min-w-0 flex-row items-center gap-2">
           <View
@@ -52,7 +57,11 @@ export function BudgetRow({
         </View>
       </View>
 
-      <View className="h-1.5 w-full rounded-full bg-border">
+      <View
+        className="h-1.5 w-full rounded-full bg-border"
+        accessibilityRole="progressbar"
+        accessibilityValue={{ min: 0, max: 100, now: Math.round(progress) }}
+      >
         <Animated.View
           style={{
             height: 6,

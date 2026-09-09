@@ -23,6 +23,9 @@ jest.mock('#/api/wallets', () => ({
 }))
 jest.mock('#/components/goals/goal-sheet', () => ({ GoalSheet: () => null }))
 jest.mock('#/components/goals/goal-move-sheet', () => ({ GoalMoveSheet: () => null }))
+jest.mock('#/lib/haptics', () => ({
+  useHaptic: () => ({ tap: jest.fn(), success: jest.fn(), error: jest.fn(), heavy: jest.fn() }),
+}))
 
 const GOAL = {
   id: 'g1', name: 'Viagem Europa', targetAmount: 10000, seedAmount: 0,
@@ -54,5 +57,12 @@ describe('GoalsScreen', () => {
   it('sem metas: empty state', () => {
     const { getByText } = renderWith([])
     expect(getByText('Nenhuma meta ainda')).toBeTruthy()
+  })
+
+  it('expõe rótulos de acessibilidade', () => {
+    const { getByLabelText } = renderWith([GOAL])
+    expect(getByLabelText('Voltar')).toBeTruthy()
+    expect(getByLabelText('Nova meta')).toBeTruthy()
+    expect(getByLabelText(/Total guardado: R\$/)).toBeTruthy()
   })
 })

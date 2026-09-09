@@ -154,7 +154,11 @@ export const ProfileSheet = forwardRef<SheetRef, Props>(function ProfileSheet({ 
               </View>
             )}
             <View className="min-w-0 flex-1">
-              <Text numberOfLines={1} className="text-base font-semibold text-fg">
+              <Text
+                numberOfLines={1}
+                className="text-base font-semibold text-fg"
+                accessibilityRole="header"
+              >
                 {user?.name ?? '—'}
               </Text>
               <Text numberOfLines={1} className="text-sm text-muted">
@@ -172,6 +176,9 @@ export const ProfileSheet = forwardRef<SheetRef, Props>(function ProfileSheet({ 
                 setCatOpen((o) => !o)
                 setExpandedId(null)
               }}
+              accessibilityRole="button"
+              accessibilityLabel="Categorias"
+              accessibilityState={{ expanded: catOpen }}
               className="flex-row items-center gap-2 active:opacity-70"
             >
               <Tag size={16} color={catOpen ? colors.fg : colors.muted} strokeWidth={1.5} />
@@ -191,7 +198,11 @@ export const ProfileSheet = forwardRef<SheetRef, Props>(function ProfileSheet({ 
               <View onLayout={onContentLayout}>
                 <View className="gap-3 pt-4">
                   {/* Toggle tipo — segmented igual ao da criação de transação */}
-                  <View className="flex-row rounded-xl p-1" style={{ backgroundColor: colors.border }}>
+                  <View
+                    accessibilityRole="radiogroup"
+                    className="flex-row rounded-xl p-1"
+                    style={{ backgroundColor: colors.border }}
+                  >
                     {(
                       [
                         { value: 'EXPENSE', label: 'Despesas', tone: colors.negative },
@@ -207,6 +218,9 @@ export const ProfileSheet = forwardRef<SheetRef, Props>(function ProfileSheet({ 
                             setCatType(opt.value)
                             setExpandedId(null)
                           }}
+                          accessibilityRole="radio"
+                          accessibilityLabel={opt.label}
+                          accessibilityState={{ checked: on }}
                           className="flex-1 rounded-lg py-2"
                           style={{ backgroundColor: on ? `${opt.tone}26` : 'transparent' }}
                         >
@@ -267,6 +281,9 @@ export const ProfileSheet = forwardRef<SheetRef, Props>(function ProfileSheet({ 
                                 onPress={() => onChipPress(c)}
                                 onPressIn={() => startLongPress(c)}
                                 onPressOut={cancelLongPress}
+                                accessibilityRole="button"
+                                accessibilityLabel={c.name}
+                                accessibilityState={{ selected: on }}
                                 className="flex-row items-center gap-1.5 rounded-full px-2.5 py-1.5"
                                 style={{ backgroundColor: colors.border }}
                               >
@@ -299,6 +316,8 @@ export const ProfileSheet = forwardRef<SheetRef, Props>(function ProfileSheet({ 
                           setEditingCategory(undefined)
                           categorySheetRef.current?.present()
                         }}
+                        accessibilityRole="button"
+                        accessibilityLabel="Nova categoria"
                         className="flex-row items-center justify-center gap-2 rounded-xl py-2.5"
                         style={{ borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed' }}
                       >
@@ -332,6 +351,7 @@ export const ProfileSheet = forwardRef<SheetRef, Props>(function ProfileSheet({ 
               value={lockOn}
               onValueChange={toggleLock}
               disabled={!canLock}
+              accessibilityLabel="Bloqueio do app"
               trackColor={{ true: colors.accent, false: colors.border }}
             />
           </View>
@@ -342,6 +362,9 @@ export const ProfileSheet = forwardRef<SheetRef, Props>(function ProfileSheet({ 
           <Pressable
             onPress={handleLogout}
             disabled={loggingOut}
+            accessibilityRole="button"
+            accessibilityLabel="Sair da conta"
+            accessibilityState={{ disabled: loggingOut }}
             className="flex-row items-center gap-3 px-1 py-2 active:opacity-70"
             style={{ opacity: loggingOut ? 0.5 : 1 }}
           >

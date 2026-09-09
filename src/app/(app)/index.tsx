@@ -3,7 +3,7 @@ import { RefreshControl } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useFocusEffect } from 'expo-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowRight, TrendingDown, TrendingUp, Wallet } from 'lucide-react-native'
+import { ArrowRight, Wallet } from 'lucide-react-native'
 
 import { ScrollView, View, Text, Pressable } from '#/tw'
 import { Image } from '#/tw/image'
@@ -12,7 +12,12 @@ import { useAuthSession } from '#/auth/session'
 import { fmtBRL, fmtDate, tabularNums } from '#/lib/format'
 import { colors } from '#/theme/colors'
 import { CATEGORY_ICONS } from '#/lib/category-icons'
+import { useHaptic } from '#/lib/haptics'
+import { usePullRefresh } from '#/lib/use-pull-refresh'
 import { ProfileSheet } from '#/components/profile/profile-sheet'
+import { Skeleton } from '#/components/ui/skeleton'
+import { EmptyState } from '#/components/ui/empty-state'
+import { SummaryCard } from '#/components/ui/summary-card'
 import type { SheetRef } from '#/components/ui/sheet'
 import type { DashboardData } from '#/schemas/dashboard'
 
@@ -35,6 +40,13 @@ export default function Dashboard() {
   const firstName = session?.user?.name?.split(' ')[0] ?? ''
   const cold = isLoading && !data
   const profileRef = useRef<SheetRef>(null)
+  const haptic = useHaptic()
+  const totalBalance = data?.totalBalance ?? 0
+
+  const { refreshing, onRefresh } = usePullRefresh(isFetching, () => {
+    haptic.tap()
+    qc.invalidateQueries({ queryKey: ['dashboard'] })
+  })
 
   return (
     <>
@@ -48,8 +60,8 @@ export default function Dashboard() {
       }}
       refreshControl={
         <RefreshControl
-          refreshing={isFetching && !isLoading}
-          onRefresh={() => qc.invalidateQueries({ queryKey: ['dashboard'] })}
+          refreshing={refreshing}
+          onRefresh={onRefresh}
           tintColor={colors.muted}
           colors={[colors.muted]}
           progressViewOffset={insets.top + 8}
@@ -61,16 +73,28 @@ export default function Dashboard() {
         <View className="gap-1">
           <Text className="text-sm text-muted">Olá, {firstName}</Text>
           {cold ? (
-            <View className="h-10 w-40 rounded-lg bg-card" />
+            <Skeleton style={{ height: 40, width: 160, borderRadius: 8 }} />
           ) : (
-            <Text className="text-4xl font-bold text-fg" style={tabularNums}>
-              {fmtBRL(data?.totalBalance ?? 0)}
+            <Text
+              className="text-4xl font-bold text-fg"
+              style={tabularNums}
+              maxFontSizeMultiplier={1.4}
+              accessibilityRole="header"
+              accessibilityLabel={`Saldo total: ${fmtBRL(totalBalance)}`}
+            >
+              {fmtBRL(totalBalance)}
             </Text>
           )}
           <Text className="text-xs text-muted">Saldo total · todas as carteiras</Text>
         </View>
 
-        <Pressable onPress={() => profileRef.current?.present()} className="active:opacity-70">
+        <Pressable
+          onPress={() => profileRef.current?.present()}
+          accessibilityRole="button"
+          accessibilityLabel="Abrir perfil"
+          hitSlop={8}
+          className="active:opacity-70"
+        >
           {session?.user?.image ? (
             <Image source={session.user.image} className="h-10 w-10 rounded-full" />
           ) : (
@@ -92,11 +116,16 @@ export default function Dashboard() {
           </View>
 
           <View className="gap-3">
-            <Text className="text-xs font-medium uppercase tracking-widest text-muted">Recentes</Text>
+            <Text
+              className="text-xs font-medium uppercase tracking-widest text-muted"
+              accessibilityRole="header"
+            >
+              Recentes
+            </Text>
             {cold ? (
               <ListSkeleton />
             ) : !data?.recent.length ? (
-              <EmptyRecent />
+              <EmptyState title="Nenhuma transação ainda" description="Toque em + para adicionar" />
             ) : (
               <View className="gap-1">
                 {data.recent.map((t) => (
@@ -111,38 +140,6 @@ export default function Dashboard() {
 
     <ProfileSheet ref={profileRef} />
     </>
-  )
-}
-
-function SummaryCard({
-  label,
-  value,
-  kind,
-  loading,
-}: {
-  label: string
-  value: number
-  kind: 'in' | 'out'
-  loading: boolean
-}) {
-  const isIn = kind === 'in'
-  const Icon = isIn ? TrendingUp : TrendingDown
-  const tone = isIn ? colors.positive : colors.negative
-
-  return (
-    <View className="flex-1 gap-3 rounded-2xl border border-border bg-card p-4">
-      <View className="flex-row items-center gap-2">
-        <Icon color={tone} size={16} />
-        <Text className="text-xs text-muted">{label}</Text>
-      </View>
-      {loading ? (
-        <View className="h-6 w-24 rounded bg-bg" />
-      ) : (
-        <Text className="text-lg font-semibold" style={[tabularNums, { color: tone }]}>
-          {fmtBRL(value)}
-        </Text>
-      )}
-    </View>
   )
 }
 
@@ -222,26 +219,17 @@ function OnboardingCard() {
   )
 }
 
-function EmptyRecent() {
-  return (
-    <View className="items-center gap-2 rounded-2xl border border-border bg-card py-10">
-      <Text className="text-sm text-muted">Nenhuma transação ainda</Text>
-      <Text className="text-xs text-muted/70">Toque em + para adicionar</Text>
-    </View>
-  )
-}
-
 function ListSkeleton() {
   return (
     <View className="gap-1">
       {[0, 1, 2].map((i) => (
         <View key={i} className="flex-row items-center gap-3 rounded-xl px-1 py-2.5">
-          <View className="h-8 w-8 shrink-0 rounded-xl bg-card" />
+          <Skeleton style={{ height: 32, width: 32, borderRadius: 12 }} />
           <View className="flex-1 gap-1.5">
-            <View className="h-3.5 w-28 rounded bg-card" />
-            <View className="h-3 w-20 rounded bg-card opacity-60" />
+            <Skeleton style={{ height: 14, width: 112, borderRadius: 4 }} />
+            <Skeleton style={{ height: 12, width: 80, borderRadius: 4 }} />
           </View>
-          <View className="h-3.5 w-14 rounded bg-card" />
+          <Skeleton style={{ height: 14, width: 56, borderRadius: 4 }} />
         </View>
       ))}
     </View>
