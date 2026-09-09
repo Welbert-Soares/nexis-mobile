@@ -1,7 +1,7 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useRef } from 'react'
 import { RefreshControl } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { useFocusEffect } from 'expo-router'
+import { useFocusEffect, useRouter } from 'expo-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeftRight, Plus, Wallet as WalletIcon } from 'lucide-react-native'
 
@@ -9,7 +9,6 @@ import { ScrollView, View, Text, Pressable } from '#/tw'
 import { walletsQuery } from '#/api/wallets'
 import { fmtBRL, tabularNums } from '#/lib/format'
 import { colors } from '#/theme/colors'
-import type { Wallet } from '#/schemas/wallet'
 import { WalletCard } from '#/components/wallets/wallet-card'
 import { WalletSheet } from '#/components/wallets/wallet-sheet'
 import { TransferSheet } from '#/components/wallets/transfer-sheet'
@@ -18,6 +17,7 @@ import type { SheetRef } from '#/components/ui/sheet'
 export default function Wallets() {
   const insets = useSafeAreaInsets()
   const qc = useQueryClient()
+  const router = useRouter()
   const { data, isLoading, isFetching } = useQuery(walletsQuery)
   const wallets = data ?? []
   const cold = isLoading && !data
@@ -30,20 +30,12 @@ export default function Wallets() {
     }, [qc]),
   )
 
-  const [editing, setEditing] = useState<Wallet | undefined>()
   const walletRef = useRef<SheetRef>(null)
   const transferRef = useRef<SheetRef>(null)
 
   const totalBalance = wallets.reduce((acc, w) => acc + w.balance, 0)
 
   function openNew() {
-    setEditing(undefined)
-    walletRef.current?.present()
-  }
-  function openEdit(w: Wallet) {
-    // objeto novo a cada abertura → o useEffect([wallet]) do sheet repopula
-    // mesmo reabrindo a mesma carteira sem refetch no meio.
-    setEditing({ ...w })
     walletRef.current?.present()
   }
 
@@ -110,7 +102,11 @@ export default function Wallets() {
         ) : (
           <View className="gap-3">
             {wallets.map((w) => (
-              <Pressable key={w.id} onPress={() => openEdit(w)} className="active:opacity-80">
+              <Pressable
+                key={w.id}
+                onPress={() => router.push({ pathname: '/wallets/[id]', params: { id: w.id } })}
+                className="active:opacity-80"
+              >
                 <WalletCard wallet={w} />
               </Pressable>
             ))}
@@ -118,7 +114,7 @@ export default function Wallets() {
         )}
       </ScrollView>
 
-      <WalletSheet ref={walletRef} wallet={editing} onClose={() => setEditing(undefined)} />
+      <WalletSheet ref={walletRef} />
       <TransferSheet ref={transferRef} wallets={wallets} />
     </>
   )
