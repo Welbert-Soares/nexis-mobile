@@ -41,6 +41,10 @@ jest.mock('#/components/ui/sheet', () => {
 })
 jest.mock('lucide-react-native', () => new Proxy({}, { get: () => () => null }))
 jest.mock('#/lib/category-icons', () => ({ CATEGORY_ICONS: {} }))
+jest.mock('#/lib/haptics', () => ({
+  useHaptic: () => ({ tap: jest.fn(), success: jest.fn(), error: jest.fn(), heavy: jest.fn() }),
+}))
+jest.mock('#/components/transactions/delete-mode-sheet', () => ({ DeleteModeSheet: () => null }))
 
 const WALLET = {
   id: 'w1', name: 'Nubank', type: 'CHECKING', color: null, icon: null,
@@ -119,38 +123,39 @@ describe('TransactionSheet', () => {
     expect(queryByText('Parcelar')).toBeNull()
   })
 
-  it('edição não mostra Repetir nem Parcelar', () => {
-    const { queryByText } = wrap(<TransactionSheet ref={createRef<SheetRef>()} tx={TX} />)
-    expect(queryByText('Repetir')).toBeNull()
+  it('edição mostra Repetir mas não Parcelar (Fatia 7)', () => {
+    const { getByText, queryByText } = wrap(<TransactionSheet ref={createRef<SheetRef>()} tx={TX} />)
+    expect(getByText('Repetir')).toBeTruthy()
     expect(queryByText('Parcelar')).toBeNull()
   })
 
-  it('lixeira numa parcela abre o seletor de 3 opções', () => {
-    const { getByTestId, getByText } = wrap(
+  it('edição de recorrente pré-marca "Repetir" (isDirty gate mantém "Salvar" off)', () => {
+    const { getByText } = wrap(<TransactionSheet ref={createRef<SheetRef>()} tx={TX_RECURRING} />)
+    expect(getByText('Repetir')).toBeTruthy()
+    expect(getByText('Salvar alterações')).toBeDisabled()
+  })
+
+  it('lixeira numa parcela NÃO mostra a confirmação inline (vai pro delete-mode-sheet)', () => {
+    const { getByTestId, queryByText } = wrap(
       <TransactionSheet ref={createRef<SheetRef>()} tx={TX_INSTALLMENT} />,
     )
     fireEvent.press(getByTestId('transaction-delete'))
-    expect(getByText('Só esta parcela')).toBeTruthy()
-    expect(getByText('Esta e as próximas')).toBeTruthy()
-    expect(getByText('Todas as parcelas')).toBeTruthy()
+    expect(queryByText('Excluir esta transação?')).toBeNull()
   })
 
-  it('lixeira num recorrente abre o seletor de série', () => {
-    const { getByTestId, getByText } = wrap(
+  it('lixeira num recorrente NÃO mostra a confirmação inline', () => {
+    const { getByTestId, queryByText } = wrap(
       <TransactionSheet ref={createRef<SheetRef>()} tx={TX_RECURRING} />,
     )
     fireEvent.press(getByTestId('transaction-delete'))
-    expect(getByText('Só esta ocorrência')).toBeTruthy()
-    expect(getByText('Esta e as futuras')).toBeTruthy()
-    expect(getByText('Toda a série')).toBeTruthy()
+    expect(queryByText('Excluir esta transação?')).toBeNull()
   })
 
   it('lixeira numa transação comum mantém a confirmação simples', () => {
-    const { getByTestId, getByText, queryByText } = wrap(
+    const { getByTestId, getByText } = wrap(
       <TransactionSheet ref={createRef<SheetRef>()} tx={TX} />,
     )
     fireEvent.press(getByTestId('transaction-delete'))
     expect(getByText('Excluir esta transação?')).toBeTruthy()
-    expect(queryByText('Todas as parcelas')).toBeNull()
   })
 })

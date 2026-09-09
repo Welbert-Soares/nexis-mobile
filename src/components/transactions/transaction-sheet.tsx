@@ -23,6 +23,8 @@ import { colors } from '#/theme/colors'
 import { walletsQuery } from '#/api/wallets'
 import { categoriesQuery } from '#/api/categories'
 import { createTransaction, editTransaction, deleteTransaction } from '#/api/transactions'
+import { useHaptic } from '#/lib/haptics'
+import { DeleteModeSheet } from '#/components/transactions/delete-mode-sheet'
 import type { Transaction, TransactionType } from '#/schemas/transaction'
 
 type TxType = TransactionType
@@ -47,6 +49,8 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
 ) {
   const isEdit = !!tx
   const qc = useQueryClient()
+  const haptic = useHaptic()
+  const deleteModeRef = useRef<SheetRef>(null)
 
   const [type, setType] = useState<TxType>('EXPENSE')
   const [cents, setCents] = useState(0)
@@ -87,9 +91,9 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
     setShowDatePicker(false)
     setExpandedCatId(null)
     setExpandedWalletId(null)
-    setRecurring(false)
+    setRecurring(t?.recurring ?? false)
     setRecurringOpen(false)
-    setInterval('MONTHLY')
+    setInterval((t?.interval as Interval) ?? 'MONTHLY')
     setParceling(false)
     setParcelingOpen(false)
     setInstallments(MIN_INSTALLMENTS)
@@ -125,6 +129,8 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
             categoryId: categoryId ?? null,
             description: description.trim() || null,
             date: dateStr,
+            recurring: recurring || undefined,
+            interval: recurring ? interval : undefined,
           })
         : createTransaction({
             amount,
@@ -140,6 +146,7 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
     },
     onSuccess: () => {
       invalidate()
+      haptic.success()
       if (!isEdit) onCreated?.(date)
       setSaved(true)
       setTimeout(() => (ref as React.RefObject<SheetRef>)?.current?.dismiss(), 900)
@@ -150,6 +157,7 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
     mutationFn: (mode?: 'this' | 'this-and-future' | 'all') => deleteTransaction(tx!.id, mode),
     onSuccess: () => {
       invalidate()
+      haptic.error()
       ;(ref as React.RefObject<SheetRef>)?.current?.dismiss()
     },
   })
@@ -165,11 +173,14 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
     walletId !== tx?.walletId ||
     categoryId !== (tx?.categoryId ?? null) ||
     description.trim() !== (tx?.description ?? '') ||
-    toYMD(date) !== toYMD(new Date(tx!.date))
+    toYMD(date) !== toYMD(new Date(tx!.date)) ||
+    recurring !== (tx?.recurring ?? false) ||
+    (recurring && interval !== ((tx?.interval as Interval) ?? 'MONTHLY'))
 
   const saveDisabled = busy || cents <= 0 || !walletId || !isDirty
 
   return (
+    <>
     <Sheet
       ref={ref}
       onDismiss={() => {
@@ -190,7 +201,11 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
               testID="transaction-delete"
               onPress={() => {
                 collapseChips()
-                setConfirmDelete(true)
+                if (isGroupTx) {
+                  deleteModeRef.current?.present()
+                } else {
+                  setConfirmDelete(true)
+                }
               }}
               className="p-1 active:opacity-60"
             >
@@ -217,78 +232,33 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
             </Pressable>
           </View>
         ) : confirmDelete ? (
-          isGroupTx ? (
-            <View className="gap-3 py-4">
-              <Text className="text-center text-sm text-fg">
-                {tx!.isInstallment ? 'Excluir parcelamento' : 'Excluir recorrência'}
-              </Text>
-              <Text className="text-center text-xs text-muted">
-                O saldo da carteira será revertido.
-              </Text>
-              <Pressable
-                onPress={() => remove.mutate('this')}
-                disabled={remove.isPending}
-                className="rounded-xl border border-border px-4 py-3.5 active:opacity-70"
-              >
-                <Text className="text-sm font-medium text-fg">
-                  {tx!.isInstallment ? 'Só esta parcela' : 'Só esta ocorrência'}
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => remove.mutate('this-and-future')}
-                disabled={remove.isPending}
-                className="rounded-xl border border-border px-4 py-3.5 active:opacity-70"
-              >
-                <Text className="text-sm font-medium text-fg">
-                  {tx!.isInstallment ? 'Esta e as próximas' : 'Esta e as futuras'}
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => remove.mutate('all')}
-                disabled={remove.isPending}
-                className="rounded-xl px-4 py-3.5 active:opacity-70"
-                style={{ backgroundColor: 'rgba(248,113,113,0.18)' }}
-              >
-                <Text className="text-sm font-medium" style={{ color: colors.negative }}>
-                  {tx!.isInstallment ? 'Todas as parcelas' : 'Toda a série'}
-                </Text>
-              </Pressable>
+          <View className="items-center gap-4 py-6">
+            <Text className="text-sm text-fg">Excluir esta transação?</Text>
+            <Text className="text-center text-xs text-muted">
+              O saldo da carteira será revertido.
+            </Text>
+            <View className="flex-row gap-3">
               <Pressable
                 onPress={() => setConfirmDelete(false)}
-                className="rounded-xl border border-border py-3"
+                className="flex-1 rounded-xl border border-border py-3"
               >
                 <Text className="text-center text-sm text-muted">Cancelar</Text>
               </Pressable>
-            </View>
-          ) : (
-            <View className="items-center gap-4 py-6">
-              <Text className="text-sm text-fg">Excluir esta transação?</Text>
-              <Text className="text-center text-xs text-muted">
-                O saldo da carteira será revertido.
-              </Text>
-              <View className="flex-row gap-3">
-                <Pressable
-                  onPress={() => setConfirmDelete(false)}
-                  className="flex-1 rounded-xl border border-border py-3"
+              <Pressable
+                onPress={() => remove.mutate(undefined)}
+                disabled={remove.isPending}
+                className="flex-1 rounded-xl py-3"
+                style={{ backgroundColor: 'rgba(248,113,113,0.18)' }}
+              >
+                <Text
+                  className="text-center text-sm font-medium"
+                  style={{ color: colors.negative }}
                 >
-                  <Text className="text-center text-sm text-muted">Cancelar</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => remove.mutate(undefined)}
-                  disabled={remove.isPending}
-                  className="flex-1 rounded-xl py-3"
-                  style={{ backgroundColor: 'rgba(248,113,113,0.18)' }}
-                >
-                  <Text
-                    className="text-center text-sm font-medium"
-                    style={{ color: colors.negative }}
-                  >
-                    {remove.isPending ? 'Excluindo…' : 'Excluir'}
-                  </Text>
-                </Pressable>
-              </View>
+                  {remove.isPending ? 'Excluindo…' : 'Excluir'}
+                </Text>
+              </Pressable>
             </View>
-          )
+          </View>
         ) : saved ? (
           <View className="items-center gap-3 py-8">
             <View
@@ -514,10 +484,10 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
               onFocus={collapseChips}
             />
 
-            {/* Repetir / Parcelar — só na criação (espelha o PWA) */}
-            {!isEdit && (
-              <View className="gap-2">
-                <View className="flex-row gap-2">
+            {/* Repetir sempre (também no edit — Fatia 7). Parcelar só na criação. */}
+            <View className="gap-2">
+              {(() => {
+                const repeatCard = (
                   <ToggleCard
                     icon={Repeat2}
                     label="Repetir"
@@ -541,29 +511,36 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
                       }
                     }}
                   />
-
-                  {type === 'EXPENSE' && (
-                    <ToggleCard
-                      icon={Layers}
-                      label="Parcelar"
-                      tone={colors.violet}
-                      active={parceling}
-                      hint={parceling && !parcelingOpen ? `${installments}x` : undefined}
-                      onPress={() => {
-                        collapseChips()
-                        if (parceling) {
-                          setParceling(false)
-                          setParcelingOpen(false)
-                        } else {
-                          setParceling(true)
-                          setParcelingOpen(true)
-                          setRecurring(false)
-                          setRecurringOpen(false)
-                        }
-                      }}
-                    />
-                  )}
-                </View>
+                )
+                return isEdit ? (
+                  repeatCard
+                ) : (
+                  <View className="flex-row gap-2">
+                    {repeatCard}
+                    {type === 'EXPENSE' && (
+                      <ToggleCard
+                        icon={Layers}
+                        label="Parcelar"
+                        tone={colors.violet}
+                        active={parceling}
+                        hint={parceling && !parcelingOpen ? `${installments}x` : undefined}
+                        onPress={() => {
+                          collapseChips()
+                          if (parceling) {
+                            setParceling(false)
+                            setParcelingOpen(false)
+                          } else {
+                            setParceling(true)
+                            setParcelingOpen(true)
+                            setRecurring(false)
+                            setRecurringOpen(false)
+                          }
+                        }}
+                      />
+                    )}
+                  </View>
+                )
+              })()}
 
                 {recurring && recurringOpen && (
                   <View className="flex-row gap-2 pt-1">
@@ -591,7 +568,7 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
                   </View>
                 )}
 
-                {parceling && parcelingOpen && (
+                {!isEdit && parceling && parcelingOpen && (
                   <View
                     className="mt-1 flex-row items-center gap-4 rounded-xl px-4 py-3"
                     style={{ backgroundColor: colors.border }}
@@ -622,8 +599,7 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
                     </Pressable>
                   </View>
                 )}
-              </View>
-            )}
+            </View>
 
             {save.isError && (
               <Text className="text-center text-xs" style={{ color: colors.negative }}>
@@ -645,6 +621,13 @@ export const TransactionSheet = forwardRef<SheetRef, Props>(function Transaction
         )}
       </BottomSheetScrollView>
     </Sheet>
+
+    <DeleteModeSheet
+      ref={deleteModeRef}
+      tx={tx}
+      onPick={(mode) => remove.mutate(mode)}
+    />
+    </>
   )
 })
 
