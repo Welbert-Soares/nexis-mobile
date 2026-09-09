@@ -17,6 +17,16 @@ jest.mock('#/api/categories', () => ({
   removeCategory: jest.fn(),
 }))
 jest.mock('#/components/profile/category-sheet', () => ({ CategorySheet: () => null }))
+jest.mock('#/lib/haptics', () => ({
+  useHaptic: () => ({ tap: jest.fn(), success: jest.fn(), error: jest.fn(), heavy: jest.fn() }),
+}))
+jest.mock('#/lib/app-lock', () => ({
+  isAppLockEnabled: jest.fn().mockResolvedValue(false),
+  setAppLockEnabled: jest.fn().mockResolvedValue(undefined),
+  canUseAppLock: jest.fn().mockResolvedValue(true),
+  runAuth: jest.fn().mockResolvedValue(true),
+}))
+jest.mock('#/lib/app-lock-context', () => ({ useAppLock: () => ({ refreshEnabled: jest.fn() }) }))
 jest.mock('#/tw', () => {
   const RN = require('react-native')
   return { View: RN.View, Text: RN.Text, Pressable: RN.Pressable, ScrollView: RN.ScrollView }
@@ -30,7 +40,7 @@ jest.mock('#/components/ui/sheet', () => {
   }
 })
 jest.mock('lucide-react-native', () => ({
-  ChevronDown: () => null, LogOut: () => null, Plus: () => null, Tag: () => null,
+  ChevronDown: () => null, Lock: () => null, LogOut: () => null, Plus: () => null, Tag: () => null,
 }))
 jest.mock('#/lib/category-icons', () => ({ CATEGORY_ICONS: {} }))
 
@@ -57,5 +67,11 @@ describe('ProfileSheet', () => {
     fireEvent.press(getByText('Categorias'))
     expect(getByText('Despesas')).toBeTruthy()
     expect(getByText('Receitas')).toBeTruthy()
+  })
+
+  it('mostra a linha "Bloqueio do app"', () => {
+    const ref = createRef<SheetRef>()
+    const { getByText } = wrap(<ProfileSheet ref={ref} />)
+    expect(getByText('Bloqueio do app')).toBeTruthy()
   })
 })

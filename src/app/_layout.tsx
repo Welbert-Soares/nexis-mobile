@@ -7,6 +7,8 @@ import { Stack } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 
 import { SessionProvider, useAuthSession } from '#/auth/session'
+import { AppLockProvider, useAppLock } from '#/lib/app-lock-context'
+import { AppLockScreen } from '#/components/app-lock-screen'
 import { View, Text } from '#/tw'
 import { colors } from '#/theme/colors'
 
@@ -18,6 +20,7 @@ const queryClient = new QueryClient({
 
 function Gate() {
   const { isPending } = useAuthSession()
+  const { locked } = useAppLock()
 
   if (isPending) {
     return (
@@ -28,15 +31,18 @@ function Gate() {
   }
 
   return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-        contentStyle: { backgroundColor: colors.bg },
-      }}
-    >
-      <Stack.Screen name="(app)" />
-      <Stack.Screen name="(auth)" />
-    </Stack>
+    <>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: colors.bg },
+        }}
+      >
+        <Stack.Screen name="(app)" />
+        <Stack.Screen name="(auth)" />
+      </Stack>
+      {locked && <AppLockScreen />}
+    </>
   )
 }
 
@@ -45,10 +51,12 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
         <SessionProvider>
-          <BottomSheetModalProvider>
-            <StatusBar style="light" />
-            <Gate />
-          </BottomSheetModalProvider>
+          <AppLockProvider>
+            <BottomSheetModalProvider>
+              <StatusBar style="light" />
+              <Gate />
+            </BottomSheetModalProvider>
+          </AppLockProvider>
         </SessionProvider>
       </QueryClientProvider>
     </GestureHandlerRootView>

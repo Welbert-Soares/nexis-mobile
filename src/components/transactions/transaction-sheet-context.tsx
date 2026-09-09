@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useMemo, useRef, useState, type
 
 import type { SheetRef } from '#/components/ui/sheet'
 import type { Transaction } from '#/schemas/transaction'
+import { useHaptic } from '#/lib/haptics'
 import { TransactionSheet } from '#/components/transactions/transaction-sheet'
 
 type YearMonth = { year: number; month: number }
@@ -23,19 +24,24 @@ const TransactionSheetContext = createContext<Ctx | null>(null)
  */
 export function TransactionSheetProvider({ children }: { children: ReactNode }) {
   const sheetRef = useRef<SheetRef>(null)
+  const haptic = useHaptic()
   const [editing, setEditing] = useState<Transaction | undefined>()
   const [createdMonth, setCreatedMonth] = useState<YearMonth | null>(null)
 
   const openNew = useCallback(() => {
+    haptic.tap()
     setEditing(undefined)
     sheetRef.current?.present()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const openEdit = useCallback((tx: Transaction) => {
+    haptic.tap()
     // objeto novo a cada abertura → o useEffect([tx]) do sheet repopula mesmo
     // reabrindo a mesma transação sem refetch no meio.
     setEditing({ ...tx })
     sheetRef.current?.present()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const consumeCreatedMonth = useCallback(() => setCreatedMonth(null), [])

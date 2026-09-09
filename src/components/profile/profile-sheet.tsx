@@ -1,7 +1,7 @@
 import { forwardRef, useEffect, useRef, useState } from 'react'
-import { Animated, type LayoutChangeEvent } from 'react-native'
+import { Animated, Switch, type LayoutChangeEvent } from 'react-native'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChevronDown, LogOut, Plus, Tag } from 'lucide-react-native'
+import { ChevronDown, Lock, LogOut, Plus, Tag } from 'lucide-react-native'
 
 import { View, Text, Pressable } from '#/tw'
 import { Image } from '#/tw/image'
@@ -11,6 +11,9 @@ import { CATEGORY_ICONS } from '#/lib/category-icons'
 import { colors } from '#/theme/colors'
 import { useAuthSession } from '#/auth/session'
 import { signOut } from '#/auth/client'
+import { useHaptic } from '#/lib/haptics'
+import { isAppLockEnabled, setAppLockEnabled, canUseAppLock, runAuth } from '#/lib/app-lock'
+import { useAppLock } from '#/lib/app-lock-context'
 import { categoriesManagementQuery, removeCategory } from '#/api/categories'
 import type { CategoryManagement } from '#/schemas/category'
 
@@ -26,6 +29,21 @@ export const ProfileSheet = forwardRef<SheetRef, Props>(function ProfileSheet({ 
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [confirmingDelete, setConfirmingDelete] = useState<CategoryManagement | null>(null)
   const [loggingOut, setLoggingOut] = useState(false)
+
+  const haptic = useHaptic()
+  const { refreshEnabled } = useAppLock()
+  const [lockOn, setLockOn] = useState(false)
+  const [canLock, setCanLock] = useState(false)
+  useEffect(() => {
+    isAppLockEnabled().then(setLockOn)
+    canUseAppLock().then(setCanLock)
+  }, [])
+  async function toggleLock(next: boolean) {
+    if (next && !(await runAuth())) return
+    await setAppLockEnabled(next)
+    setLockOn(next)
+    refreshEnabled()
+  }
 
   const { data: cats = [] } = useQuery(categoriesManagementQuery)
 
@@ -58,6 +76,7 @@ export const ProfileSheet = forwardRef<SheetRef, Props>(function ProfileSheet({ 
   const remove = useMutation({
     mutationFn: (id: string) => removeCategory(id),
     onSuccess: () => {
+      haptic.error()
       setConfirmingDelete(null)
       qc.invalidateQueries({ queryKey: ['categories-management'], refetchType: 'all' })
       qc.invalidateQueries({ queryKey: ['categories'], refetchType: 'all' })
@@ -184,6 +203,7 @@ export const ProfileSheet = forwardRef<SheetRef, Props>(function ProfileSheet({ 
                         <Pressable
                           key={opt.value}
                           onPress={() => {
+                            haptic.tap()
                             setCatType(opt.value)
                             setExpandedId(null)
                           }}
@@ -290,6 +310,30 @@ export const ProfileSheet = forwardRef<SheetRef, Props>(function ProfileSheet({ 
                 </View>
               </View>
             </Animated.View>
+          </View>
+
+          <View style={{ height: 1, backgroundColor: colors.border }} />
+
+          {/* Bloqueio do app */}
+          <View
+            className="flex-row items-center gap-3 px-1 py-2"
+            style={{ opacity: canLock ? 1 : 0.5 }}
+          >
+            <Lock size={18} color={colors.muted} strokeWidth={1.5} />
+            <View className="flex-1">
+              <Text className="text-sm text-fg">Bloqueio do app</Text>
+              {!canLock && (
+                <Text className="text-[11px] text-muted">
+                  Configure Face ID / Touch ID no celular
+                </Text>
+              )}
+            </View>
+            <Switch
+              value={lockOn}
+              onValueChange={toggleLock}
+              disabled={!canLock}
+              trackColor={{ true: colors.accent, false: colors.border }}
+            />
           </View>
 
           <View style={{ height: 1, backgroundColor: colors.border }} />

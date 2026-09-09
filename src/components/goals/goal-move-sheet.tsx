@@ -7,6 +7,7 @@ import { Sheet, SheetRef, BottomSheetScrollView, BottomSheetTextInput } from '#/
 import { CurrencyInput } from '#/components/ui/currency-input'
 import { fmtBRL } from '#/lib/format'
 import { colors } from '#/theme/colors'
+import { useHaptic } from '#/lib/haptics'
 import { depositGoal, withdrawGoal } from '#/api/goals'
 import type { Goal } from '#/schemas/goal'
 import type { Wallet } from '#/schemas/wallet'
@@ -19,6 +20,7 @@ export const GoalMoveSheet = forwardRef<SheetRef, Props>(function GoalMoveSheet(
   ref,
 ) {
   const qc = useQueryClient()
+  const haptic = useHaptic()
   const [cents, setCents] = useState(0)
   const [walletId, setWalletId] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
@@ -50,6 +52,7 @@ export const GoalMoveSheet = forwardRef<SheetRef, Props>(function GoalMoveSheet(
         ? depositGoal(goal!.id, { walletId: walletId!, amount })
         : withdrawGoal(goal!.id, { walletId: walletId!, amount }),
     onSuccess: () => {
+      haptic.success()
       qc.invalidateQueries({ queryKey: ['goals'], refetchType: 'all' })
       qc.invalidateQueries({ queryKey: ['wallets'] })
       qc.invalidateQueries({ queryKey: ['dashboard'] })

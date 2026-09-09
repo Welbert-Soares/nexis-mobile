@@ -8,6 +8,7 @@ import { ArrowLeftRight, ChartColumnBig, LayoutDashboard, Wallet } from 'lucide-
 import { useAuthSession } from '#/auth/session'
 import { colors } from '#/theme/colors'
 import { triggerRecurring } from '#/api/transactions'
+import { useHaptic } from '#/lib/haptics'
 import { TransactionSheetProvider } from '#/components/transactions/transaction-sheet-context'
 import { FabTabButton } from '#/components/layout/fab'
 
@@ -15,6 +16,7 @@ export default function AppLayout() {
   const { session } = useAuthSession()
   const qc = useQueryClient()
   const insets = useSafeAreaInsets()
+  const haptic = useHaptic()
 
   // Gera as ocorrências recorrentes vencidas ao entrar no app (o PWA faz o
   // mesmo no mount do layout autenticado). Só invalida se algo foi lançado.
@@ -37,6 +39,7 @@ export default function AppLayout() {
   return (
     <TransactionSheetProvider>
       <Tabs
+        screenListeners={{ tabPress: () => haptic.tap() }}
         screenOptions={{
           headerShown: false,
           // Altura explícita da faixa de conteúdo (46) + só o safe-area embaixo.

@@ -9,6 +9,7 @@ import { SheetField } from '#/components/ui/sheet-field'
 import { CATEGORY_ICONS } from '#/lib/category-icons'
 import { WALLET_COLORS } from '#/lib/wallet-meta'
 import { colors } from '#/theme/colors'
+import { useHaptic } from '#/lib/haptics'
 import { createCategory, editCategory } from '#/api/categories'
 
 const ICON_OPTIONS = Object.keys(CATEGORY_ICONS)
@@ -67,6 +68,7 @@ export const CategorySheet = forwardRef<SheetRef, Props>(function CategorySheet(
 ) {
   const isEdit = !!category
   const qc = useQueryClient()
+  const haptic = useHaptic()
 
   const [name, setName] = useState('')
   const [icon, setIcon] = useState<string | null>(null)
@@ -127,6 +129,7 @@ export const CategorySheet = forwardRef<SheetRef, Props>(function CategorySheet(
         ? editCategory(category!.id, { name, color, icon })
         : createCategory({ name, color, icon: icon ?? undefined, type }),
     onSuccess: () => {
+      haptic.success()
       qc.invalidateQueries({ queryKey: ['categories-management'], refetchType: 'all' })
       qc.invalidateQueries({ queryKey: ['categories'], refetchType: 'all' })
       setSaved(true)
@@ -191,7 +194,10 @@ export const CategorySheet = forwardRef<SheetRef, Props>(function CategorySheet(
                     return (
                       <Pressable
                         key={opt.value}
-                        onPress={() => setType(opt.value)}
+                        onPress={() => {
+                          haptic.tap()
+                          setType(opt.value)
+                        }}
                         className="flex-1 rounded-lg py-2"
                         style={{ backgroundColor: on ? `${opt.tone}26` : 'transparent' }}
                       >
