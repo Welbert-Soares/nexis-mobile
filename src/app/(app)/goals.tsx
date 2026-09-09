@@ -13,6 +13,7 @@ import { colors } from '#/theme/colors'
 import { GoalCard } from '#/components/goals/goal-card'
 import { GoalSheet, type EditableGoal } from '#/components/goals/goal-sheet'
 import { GoalMoveSheet } from '#/components/goals/goal-move-sheet'
+import { ScreenEnter } from '#/components/ui/screen-enter'
 import type { SheetRef } from '#/components/ui/sheet'
 import type { Goal } from '#/schemas/goal'
 
@@ -56,7 +57,7 @@ export default function GoalsScreen() {
   const totalTarget = goals.reduce((acc, g) => acc + g.targetAmount, 0)
 
   return (
-    <>
+    <ScreenEnter>
       <ScrollView
         className="flex-1 bg-bg"
         contentContainerStyle={{
@@ -151,6 +152,6 @@ export default function GoalsScreen() {
           qc.invalidateQueries({ queryKey: ['wallets'] })
         }}
       />
-    </>
+    </ScreenEnter>
   )
 }
