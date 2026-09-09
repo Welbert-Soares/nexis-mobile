@@ -54,6 +54,9 @@ export default function AppLayout() {
           tabBarActiveTintColor: colors.accent,
           tabBarInactiveTintColor: colors.muted,
           tabBarLabelStyle: { fontSize: 10 },
+          // Rótulo de aba é minúsculo (10px) e duplica o ícone — não deixa o
+          // Dynamic Type grande estourar a faixa de 46px.
+          tabBarAllowFontScaling: false,
           sceneStyle: { backgroundColor: colors.bg },
           // No bottom-tabs v7 o conteúdo do slot alinha ao topo
           // (`justifyContent: 'flex-start'`) — centraliza vertical.
@@ -68,6 +71,7 @@ export default function AppLayout() {
           name="index"
           options={{
             title: 'Início',
+            tabBarAccessibilityLabel: 'Aba Início',
             tabBarIcon: ({ color, size }) => <LayoutDashboard color={color} size={size} />,
           }}
         />
@@ -75,6 +79,7 @@ export default function AppLayout() {
           name="transactions"
           options={{
             title: 'Transações',
+            tabBarAccessibilityLabel: 'Aba Transações',
             tabBarIcon: ({ color, size }) => <ArrowLeftRight color={color} size={size} />,
           }}
         />
@@ -90,6 +95,7 @@ export default function AppLayout() {
           name="wallets"
           options={{
             title: 'Carteiras',
+            tabBarAccessibilityLabel: 'Aba Carteiras',
             tabBarIcon: ({ color, size }) => <Wallet color={color} size={size} />,
           }}
         />
@@ -97,6 +103,7 @@ export default function AppLayout() {
           name="analytics"
           options={{
             title: 'Análise',
+            tabBarAccessibilityLabel: 'Aba Análise',
             tabBarIcon: ({ color, size }) => <ChartColumnBig color={color} size={size} />,
           }}
         />
