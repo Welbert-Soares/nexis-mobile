@@ -94,4 +94,9 @@ describe('AnalyticsScreen', () => {
     expect(queryByText('Resumo do mês')).toBeNull()
     expect(queryByText('Orçamentos')).toBeNull()
   })
+
+  it('o título "Análise" é um cabeçalho acessível', () => {
+    const { getByRole } = renderWith(FULL, [])
+    expect(getByRole('header', { name: 'Análise' })).toBeTruthy()
+  })
 })

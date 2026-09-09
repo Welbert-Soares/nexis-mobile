@@ -39,7 +39,12 @@ export function GoalCard({
 
   return (
     <View className="gap-3 rounded-2xl border border-border bg-card p-4">
-      <Pressable onPress={() => onEdit(goal)} className="gap-2 active:opacity-70">
+      <Pressable
+        onPress={() => onEdit(goal)}
+        accessibilityRole="button"
+        accessibilityLabel={`Editar meta ${goal.name}`}
+        className="gap-2 active:opacity-70"
+      >
         <View className="flex-row items-center justify-between gap-2">
           <View className="min-w-0 flex-row items-center gap-2">
             <View className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: tint }} />
@@ -60,7 +65,11 @@ export function GoalCard({
           </View>
         </View>
 
-        <View className="h-1.5 w-full rounded-full bg-border">
+        <View
+          className="h-1.5 w-full rounded-full bg-border"
+          accessibilityRole="progressbar"
+          accessibilityValue={{ min: 0, max: 100, now: percent }}
+        >
           <Animated.View
             style={{
               height: 6,
@@ -77,10 +86,16 @@ export function GoalCard({
       </Pressable>
 
       <View className="flex-row gap-2">
-        <Action icon={PiggyBank} label="Aportar" onPress={() => onDeposit(goal)} />
+        <Action
+          icon={PiggyBank}
+          label="Aportar"
+          a11yLabel={`Aportar na meta ${goal.name}`}
+          onPress={() => onDeposit(goal)}
+        />
         <Action
           icon={ArrowDownLeft}
           label="Resgatar"
+          a11yLabel={`Resgatar da meta ${goal.name}`}
           onPress={() => onWithdraw(goal)}
           disabled={!canWithdraw}
         />
@@ -92,11 +107,13 @@ export function GoalCard({
 function Action({
   icon: Icon,
   label,
+  a11yLabel,
   onPress,
   disabled,
 }: {
   icon: typeof PiggyBank
   label: string
+  a11yLabel?: string
   onPress: () => void
   disabled?: boolean
 }) {
@@ -104,6 +121,9 @@ function Action({
     <Pressable
       onPress={onPress}
       disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={a11yLabel ?? label}
+      accessibilityState={{ disabled: !!disabled }}
       className="flex-1 flex-row items-center justify-center gap-1.5 rounded-xl bg-border py-2.5 active:opacity-70"
       style={{ opacity: disabled ? 0.4 : 1 }}
     >

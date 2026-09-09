@@ -10,10 +10,13 @@ import { goalsQuery } from '#/api/goals'
 import { walletsQuery } from '#/api/wallets'
 import { fmtBRL, tabularNums } from '#/lib/format'
 import { colors } from '#/theme/colors'
+import { useHaptic } from '#/lib/haptics'
 import { GoalCard } from '#/components/goals/goal-card'
 import { GoalSheet, type EditableGoal } from '#/components/goals/goal-sheet'
 import { GoalMoveSheet } from '#/components/goals/goal-move-sheet'
 import { ScreenEnter } from '#/components/ui/screen-enter'
+import { Skeleton } from '#/components/ui/skeleton'
+import { EmptyState } from '#/components/ui/empty-state'
 import type { SheetRef } from '#/components/ui/sheet'
 import type { Goal } from '#/schemas/goal'
 
@@ -34,6 +37,7 @@ export default function GoalsScreen() {
 
   const goalSheetRef = useRef<SheetRef>(null)
   const moveSheetRef = useRef<SheetRef>(null)
+  const haptic = useHaptic()
   const [editing, setEditing] = useState<EditableGoal | undefined>()
   const [movingGoal, setMovingGoal] = useState<Goal | undefined>()
   const [moveMode, setMoveMode] = useState<'deposit' | 'withdraw'>('deposit')
@@ -70,6 +74,7 @@ export default function GoalsScreen() {
           <RefreshControl
             refreshing={isFetching && !isLoading}
             onRefresh={() => {
+              haptic.tap()
               qc.invalidateQueries({ queryKey: ['goals'] })
               qc.invalidateQueries({ queryKey: ['wallets'] })
             }}
@@ -80,12 +85,23 @@ export default function GoalsScreen() {
         }
       >
         <View className="flex-row items-center justify-between">
-          <Pressable onPress={() => router.back()} className="p-1 active:opacity-60">
+          <Pressable
+            onPress={() => router.back()}
+            accessibilityRole="button"
+            accessibilityLabel="Voltar"
+            hitSlop={8}
+            className="p-1 active:opacity-60"
+          >
             <ChevronLeft size={24} color={colors.fg} />
           </Pressable>
-          <Text className="text-2xl font-bold text-fg">Metas</Text>
+          <Text className="text-2xl font-bold text-fg" accessibilityRole="header">
+            Metas
+          </Text>
           <Pressable
             onPress={openNew}
+            accessibilityRole="button"
+            accessibilityLabel="Nova meta"
+            hitSlop={8}
             className="h-8 w-8 items-center justify-center rounded-full bg-border active:opacity-70"
           >
             <Plus size={16} color={colors.fg} />
@@ -94,7 +110,12 @@ export default function GoalsScreen() {
 
         <View className="gap-1">
           <Text className="text-xs text-muted">Total guardado</Text>
-          <Text className="text-3xl font-bold text-fg" style={tabularNums}>
+          <Text
+            className="text-3xl font-bold text-fg"
+            style={tabularNums}
+            maxFontSizeMultiplier={1.4}
+            accessibilityLabel={`Total guardado: ${fmtBRL(totalSaved)}`}
+          >
             {fmtBRL(totalSaved)}
           </Text>
           {totalTarget > 0 && (
@@ -104,20 +125,16 @@ export default function GoalsScreen() {
 
         {cold ? (
           <View className="gap-3">
-            <View className="h-28 rounded-2xl border border-border bg-card" />
-            <View className="h-28 rounded-2xl border border-border bg-card" />
+            <Skeleton style={{ height: 112, borderRadius: 16, borderWidth: 1, borderColor: colors.border }} />
+            <Skeleton style={{ height: 112, borderRadius: 16, borderWidth: 1, borderColor: colors.border }} />
           </View>
         ) : goals.length === 0 ? (
-          <View className="items-center gap-3 py-12">
-            <Target size={32} color={colors.muted} strokeWidth={1.5} />
-            <Text className="text-sm text-muted">Nenhuma meta ainda</Text>
-            <Pressable
-              onPress={openNew}
-              className="rounded-xl bg-border px-4 py-2.5 active:opacity-70"
-            >
-              <Text className="text-sm font-medium text-fg">Criar meta</Text>
-            </Pressable>
-          </View>
+          <EmptyState
+            variant="bare"
+            icon={Target}
+            title="Nenhuma meta ainda"
+            action={{ label: 'Criar meta', onPress: openNew }}
+          />
         ) : (
           <View className="gap-3">
             {goals.map((g) => (

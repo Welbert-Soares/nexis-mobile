@@ -8,6 +8,7 @@ import { ScrollView, View, Text } from '#/tw'
 import { analyticsQuery } from '#/api/analytics'
 import { budgetsQuery } from '#/api/budgets'
 import { colors } from '#/theme/colors'
+import { useHaptic } from '#/lib/haptics'
 import { SummaryCards } from '#/components/analytics/summary-cards'
 import { SpendingPaceCard } from '#/components/analytics/spending-pace'
 import { MonthlyTrend } from '#/components/analytics/monthly-trend'
@@ -49,6 +50,7 @@ export default function AnalyticsScreen() {
 
   const sheetRef = useRef<SheetRef>(null)
   const [editing, setEditing] = useState<EditableBudget | undefined>()
+  const haptic = useHaptic()
 
   function prevMonth() {
     if (budgetMonth === 1) {
@@ -94,6 +96,7 @@ export default function AnalyticsScreen() {
           <RefreshControl
             refreshing={isFetching && !isLoading}
             onRefresh={() => {
+              haptic.tap()
               qc.invalidateQueries({ queryKey: ['analytics'] })
               qc.invalidateQueries({ queryKey: ['budgets'] })
               qc.invalidateQueries({ queryKey: ['goals'] })
@@ -105,7 +108,9 @@ export default function AnalyticsScreen() {
         }
       >
         <View className="gap-1">
-          <Text className="text-2xl font-bold text-fg">Análise</Text>
+          <Text className="text-2xl font-bold text-fg" accessibilityRole="header">
+            Análise
+          </Text>
           <Text className="text-xs text-muted">
             {MONTHS[now.getMonth()]} {now.getFullYear()}
           </Text>
@@ -178,7 +183,12 @@ export default function AnalyticsScreen() {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <View className="gap-3">
-      <Text className="text-xs font-medium uppercase tracking-widest text-muted">{title}</Text>
+      <Text
+        className="text-xs font-medium uppercase tracking-widest text-muted"
+        accessibilityRole="header"
+      >
+        {title}
+      </Text>
       {children}
     </View>
   )
