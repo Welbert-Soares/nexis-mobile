@@ -3,6 +3,7 @@ import { Animated } from 'react-native'
 
 import { View, Text, Pressable } from '#/tw'
 import { colors } from '#/theme/colors'
+import { useReduceMotion } from '#/lib/reduce-motion'
 
 // Toast fixo acima da lista com contagem de 5s + "Desfazer". A exclusão de
 // verdade só acontece quando os 5s acabam (o pai controla o timer).
@@ -15,10 +16,11 @@ export function UndoToast({
   label: string
   onUndo: () => void
 }) {
+  const reduce = useReduceMotion()
   const progress = useRef(new Animated.Value(1)).current
 
   useEffect(() => {
-    if (!visible) return
+    if (!visible || reduce) return
     progress.setValue(1)
     const anim = Animated.timing(progress, {
       toValue: 0,
@@ -27,12 +29,14 @@ export function UndoToast({
     })
     anim.start()
     return () => anim.stop()
-  }, [visible, progress])
+  }, [visible, reduce, progress])
 
   if (!visible) return null
 
   return (
     <View
+      accessibilityLiveRegion="polite"
+      accessibilityLabel={`${label}. Toque em desfazer.`}
       className="absolute overflow-hidden rounded-2xl border border-border bg-card"
       style={{
         left: 12,
@@ -47,7 +51,13 @@ export function UndoToast({
     >
       <View className="flex-row items-center justify-between px-4 py-3">
         <Text className="text-sm text-fg">{label}</Text>
-        <Pressable onPress={onUndo} className="active:opacity-70">
+        <Pressable
+          onPress={onUndo}
+          accessibilityRole="button"
+          accessibilityLabel="Desfazer exclusão"
+          hitSlop={8}
+          className="active:opacity-70"
+        >
           <Text className="text-sm font-semibold" style={{ color: colors.accent }}>
             Desfazer
           </Text>
@@ -57,7 +67,9 @@ export function UndoToast({
         style={{
           height: 2,
           backgroundColor: colors.accent,
-          width: progress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }),
+          width: reduce
+            ? '100%'
+            : progress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }),
         }}
       />
     </View>
