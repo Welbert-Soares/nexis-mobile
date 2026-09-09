@@ -1,4 +1,6 @@
-import { ArrowLeftRight, Repeat2 } from 'lucide-react-native'
+import { useRef } from 'react'
+import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable'
+import { ArrowLeftRight, Repeat2, Trash2 } from 'lucide-react-native'
 
 import { View, Text, Pressable } from '#/tw'
 import { CATEGORY_ICONS } from '#/lib/category-icons'
@@ -6,12 +8,23 @@ import { fmtBRL, tabularNums } from '#/lib/format'
 import { colors } from '#/theme/colors'
 import type { Transaction } from '#/schemas/transaction'
 
-export function TransactionRow({ tx, onPress }: { tx: Transaction; onPress?: () => void }) {
+type SwipeMethods = { close: () => void }
+
+export function TransactionRow({
+  tx,
+  onPress,
+  onSwipeDelete,
+}: {
+  tx: Transaction
+  onPress?: () => void
+  onSwipeDelete?: () => void
+}) {
   const isExpense = tx.type === 'EXPENSE'
   const label = tx.description ?? tx.category?.name ?? 'Sem descrição'
   const color = tx.category?.color ?? tx.wallet.color ?? colors.muted
   const CategoryIcon = tx.category?.icon ? CATEGORY_ICONS[tx.category.icon] : null
   const isRecurringish = tx.recurring || !!tx.parentId
+  const swipeRef = useRef<SwipeMethods>(null)
 
   const inner = (
     <>
@@ -48,15 +61,49 @@ export function TransactionRow({ tx, onPress }: { tx: Transaction; onPress?: () 
     </>
   )
 
-  if (!onPress) {
-    return <View className="flex-row items-center gap-3 rounded-xl px-1 py-2.5">{inner}</View>
-  }
-  return (
+  const body = onPress ? (
     <Pressable
       onPress={onPress}
       className="flex-row items-center gap-3 rounded-xl px-1 py-2.5 active:opacity-70"
     >
       {inner}
     </Pressable>
+  ) : (
+    <View className="flex-row items-center gap-3 rounded-xl px-1 py-2.5">{inner}</View>
+  )
+
+  // Transferência é read-only; sem swipe.
+  if (!onSwipeDelete || tx.isTransfer) return body
+
+  return (
+    <ReanimatedSwipeable
+      ref={swipeRef as never}
+      friction={2}
+      rightThreshold={40}
+      overshootRight={false}
+      renderRightActions={() => (
+        <Pressable
+          onPress={() => {
+            swipeRef.current?.close()
+            onSwipeDelete()
+          }}
+          className="my-1 items-center justify-center rounded-xl"
+          style={{ width: 88, backgroundColor: 'rgba(248,113,113,0.18)' }}
+        >
+          <Trash2 size={18} color={colors.negative} />
+          <Text className="mt-1 text-[11px]" style={{ color: colors.negative }}>
+            Excluir
+          </Text>
+        </Pressable>
+      )}
+      onSwipeableOpen={(direction) => {
+        if (direction === 'right') {
+          swipeRef.current?.close()
+          onSwipeDelete()
+        }
+      }}
+    >
+      {body}
+    </ReanimatedSwipeable>
   )
 }

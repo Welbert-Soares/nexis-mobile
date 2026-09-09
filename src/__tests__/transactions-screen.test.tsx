@@ -13,6 +13,24 @@ jest.mock('#/tw', () => {
 jest.mock('lucide-react-native', () => new Proxy({}, { get: () => () => null }))
 jest.mock('#/lib/category-icons', () => ({ CATEGORY_ICONS: {} }))
 jest.mock('expo-router', () => ({ useFocusEffect: () => {} }))
+// ReanimatedSwipeable puxa reanimated/worklets — não sobe no jest.
+jest.mock('react-native-gesture-handler/ReanimatedSwipeable', () => {
+  const RN = require('react-native')
+  return {
+    __esModule: true,
+    default: ({ children }: { children: React.ReactNode }) => RN.createElement(RN.View, null, children),
+  }
+})
+jest.mock('#/lib/haptics', () => ({
+  useHaptic: () => ({ tap: jest.fn(), success: jest.fn(), error: jest.fn(), heavy: jest.fn() }),
+}))
+jest.mock('#/components/transactions/delete-mode-sheet', () => ({ DeleteModeSheet: () => null }))
+jest.mock('#/components/ui/undo-toast', () => ({
+  UndoToast: ({ visible, label }: { visible: boolean; label: string }) => {
+    const RN = require('react-native')
+    return visible ? RN.createElement(RN.Text, null, label) : null
+  },
+}))
 jest.mock('#/api/transactions', () => ({
   monthTransactionsQuery: (y: number, m: number) => ({
     queryKey: ['transactions', y, m],
