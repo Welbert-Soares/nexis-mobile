@@ -48,6 +48,9 @@ function IconCell({
     <View style={{ width: ICON_CELL_W, padding: 4 }}>
       <Pressable
         onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel={`Ícone ${name}`}
+        accessibilityState={{ selected }}
         className="w-full items-center justify-center rounded-xl"
         style={{
           height: 40,
@@ -154,7 +157,7 @@ export const CategorySheet = forwardRef<SheetRef, Props>(function CategorySheet(
       }}
     >
       <BottomSheetScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40, gap: 20 }}>
-        <Text className="text-base font-semibold text-fg">
+        <Text className="text-base font-semibold text-fg" accessibilityRole="header">
           {isEdit ? 'Editar categoria' : 'Nova categoria'}
         </Text>
 
@@ -175,6 +178,7 @@ export const CategorySheet = forwardRef<SheetRef, Props>(function CategorySheet(
             <SheetField
               placeholder="Nome da categoria"
               placeholderTextColor={colors.muted}
+              accessibilityLabel="Nome da categoria"
               value={name}
               onChangeText={setName}
               autoFocus={!isEdit}
@@ -183,7 +187,11 @@ export const CategorySheet = forwardRef<SheetRef, Props>(function CategorySheet(
             {!isEdit && (
               <View className="gap-2">
                 <Text className="text-xs text-muted">Tipo</Text>
-                <View className="flex-row rounded-xl p-1" style={{ backgroundColor: colors.border }}>
+                <View
+                  accessibilityRole="radiogroup"
+                  className="flex-row rounded-xl p-1"
+                  style={{ backgroundColor: colors.border }}
+                >
                   {(
                     [
                       { value: 'EXPENSE', label: 'Despesa', tone: colors.negative },
@@ -198,6 +206,9 @@ export const CategorySheet = forwardRef<SheetRef, Props>(function CategorySheet(
                           haptic.tap()
                           setType(opt.value)
                         }}
+                        accessibilityRole="radio"
+                        accessibilityLabel={opt.label}
+                        accessibilityState={{ checked: on }}
                         className="flex-1 rounded-lg py-2"
                         style={{ backgroundColor: on ? `${opt.tone}26` : 'transparent' }}
                       >
@@ -289,6 +300,9 @@ export const CategorySheet = forwardRef<SheetRef, Props>(function CategorySheet(
                   <Pressable
                     key={c}
                     onPress={() => setColor(c)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Cor ${c}`}
+                    accessibilityState={{ selected: color === c }}
                     className="h-7 w-7 rounded-full"
                     style={{
                       backgroundColor: c,
@@ -309,6 +323,9 @@ export const CategorySheet = forwardRef<SheetRef, Props>(function CategorySheet(
             <Pressable
               onPress={() => save.mutate()}
               disabled={!canSave}
+              accessibilityRole="button"
+              accessibilityLabel={isEdit ? 'Salvar' : 'Criar categoria'}
+              accessibilityState={{ disabled: !canSave }}
               className="rounded-2xl py-3.5"
               style={{ backgroundColor: colors.fg, opacity: canSave ? 1 : 0.4 }}
             >
