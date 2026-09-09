@@ -10,6 +10,7 @@ import { walletsQuery } from '#/api/wallets'
 import { fmtBRL, tabularNums } from '#/lib/format'
 import { colors } from '#/theme/colors'
 import { useHaptic } from '#/lib/haptics'
+import { usePullRefresh } from '#/lib/use-pull-refresh'
 import { WalletCard } from '#/components/wallets/wallet-card'
 import { WalletSheet } from '#/components/wallets/wallet-sheet'
 import { TransferSheet } from '#/components/wallets/transfer-sheet'
@@ -37,6 +38,11 @@ export default function Wallets() {
   const transferRef = useRef<SheetRef>(null)
   const haptic = useHaptic()
 
+  const { refreshing, onRefresh } = usePullRefresh(isFetching, () => {
+    haptic.tap()
+    qc.invalidateQueries({ queryKey: ['wallets'] })
+  })
+
   const totalBalance = wallets.reduce((acc, w) => acc + w.balance, 0)
 
   function openNew() {
@@ -55,11 +61,8 @@ export default function Wallets() {
         }}
         refreshControl={
           <RefreshControl
-            refreshing={isFetching && !isLoading}
-            onRefresh={() => {
-              haptic.tap()
-              qc.invalidateQueries({ queryKey: ['wallets'] })
-            }}
+            refreshing={refreshing}
+            onRefresh={onRefresh}
             tintColor={colors.muted}
             colors={[colors.muted]}
             progressViewOffset={insets.top + 8}

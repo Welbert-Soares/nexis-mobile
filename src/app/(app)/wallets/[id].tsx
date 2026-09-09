@@ -13,6 +13,7 @@ import { groupByDay } from '#/lib/tx-group'
 import { budgetBarColor } from '#/lib/analytics-calcs'
 import { colors } from '#/theme/colors'
 import { useHaptic } from '#/lib/haptics'
+import { usePullRefresh } from '#/lib/use-pull-refresh'
 import { WALLET_META, type WalletType } from '#/lib/wallet-meta'
 import { TransactionRow } from '#/components/transactions/transaction-row'
 import { useTransactionSheet } from '#/components/transactions/transaction-sheet-context'
@@ -82,6 +83,11 @@ export default function WalletDetail() {
   const walletSheetRef = useRef<SheetRef>(null)
   const transferSheetRef = useRef<SheetRef>(null)
   const haptic = useHaptic()
+
+  const { refreshing, onRefresh } = usePullRefresh(txq.isFetching, () => {
+    haptic.tap()
+    qc.invalidateQueries({ queryKey: ['transactions', year, month] })
+  })
 
   const today = new Date()
   const canGoNext = (() => {
@@ -275,11 +281,8 @@ export default function WalletDetail() {
           stickySectionHeadersEnabled={false}
           refreshControl={
             <RefreshControl
-              refreshing={txq.isFetching && !txq.isLoading}
-              onRefresh={() => {
-                haptic.tap()
-                qc.invalidateQueries({ queryKey: ['transactions', year, month] })
-              }}
+              refreshing={refreshing}
+              onRefresh={onRefresh}
               tintColor={colors.muted}
               colors={[colors.muted]}
             />

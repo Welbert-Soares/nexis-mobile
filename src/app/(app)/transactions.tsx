@@ -28,6 +28,7 @@ import { EmptyState } from '#/components/ui/empty-state'
 import { colors } from '#/theme/colors'
 import { CATEGORY_ICONS } from '#/lib/category-icons'
 import { useHaptic } from '#/lib/haptics'
+import { usePullRefresh } from '#/lib/use-pull-refresh'
 import { TransactionRow } from '#/components/transactions/transaction-row'
 import { useTransactionSheet } from '#/components/transactions/transaction-sheet-context'
 import { UndoToast } from '#/components/ui/undo-toast'
@@ -72,6 +73,11 @@ export default function Transactions() {
   const [search, setSearch] = useState('')
 
   const haptic = useHaptic()
+
+  const { refreshing, onRefresh } = usePullRefresh(query.isFetching, () => {
+    haptic.tap()
+    qc.invalidateQueries({ queryKey: ['transactions'] })
+  })
 
   // Exclusão com "Desfazer": a linha some na hora, mas o DELETE só vai ao
   // servidor quando os 5s acabam. "Desfazer" cancela sem chamar o servidor.
@@ -470,11 +476,8 @@ export default function Transactions() {
           stickySectionHeadersEnabled={false}
           refreshControl={
             <RefreshControl
-              refreshing={query.isFetching && !query.isLoading}
-              onRefresh={() => {
-                haptic.tap()
-                qc.invalidateQueries({ queryKey: ['transactions'] })
-              }}
+              refreshing={refreshing}
+              onRefresh={onRefresh}
               tintColor={colors.muted}
               colors={[colors.muted]}
             />

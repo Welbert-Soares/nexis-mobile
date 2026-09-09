@@ -11,6 +11,7 @@ import { walletsQuery } from '#/api/wallets'
 import { fmtBRL, tabularNums } from '#/lib/format'
 import { colors } from '#/theme/colors'
 import { useHaptic } from '#/lib/haptics'
+import { usePullRefresh } from '#/lib/use-pull-refresh'
 import { GoalCard } from '#/components/goals/goal-card'
 import { GoalSheet, type EditableGoal } from '#/components/goals/goal-sheet'
 import { GoalMoveSheet } from '#/components/goals/goal-move-sheet'
@@ -38,6 +39,12 @@ export default function GoalsScreen() {
   const goalSheetRef = useRef<SheetRef>(null)
   const moveSheetRef = useRef<SheetRef>(null)
   const haptic = useHaptic()
+
+  const { refreshing, onRefresh } = usePullRefresh(isFetching, () => {
+    haptic.tap()
+    qc.invalidateQueries({ queryKey: ['goals'] })
+    qc.invalidateQueries({ queryKey: ['wallets'] })
+  })
   const [editing, setEditing] = useState<EditableGoal | undefined>()
   const [movingGoal, setMovingGoal] = useState<Goal | undefined>()
   const [moveMode, setMoveMode] = useState<'deposit' | 'withdraw'>('deposit')
@@ -72,12 +79,8 @@ export default function GoalsScreen() {
         }}
         refreshControl={
           <RefreshControl
-            refreshing={isFetching && !isLoading}
-            onRefresh={() => {
-              haptic.tap()
-              qc.invalidateQueries({ queryKey: ['goals'] })
-              qc.invalidateQueries({ queryKey: ['wallets'] })
-            }}
+            refreshing={refreshing}
+            onRefresh={onRefresh}
             progressViewOffset={insets.top + 8}
             tintColor={colors.muted}
             colors={[colors.muted]}

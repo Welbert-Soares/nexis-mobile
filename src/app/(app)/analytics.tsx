@@ -9,6 +9,7 @@ import { analyticsQuery } from '#/api/analytics'
 import { budgetsQuery } from '#/api/budgets'
 import { colors } from '#/theme/colors'
 import { useHaptic } from '#/lib/haptics'
+import { usePullRefresh } from '#/lib/use-pull-refresh'
 import { SummaryCards } from '#/components/analytics/summary-cards'
 import { SpendingPaceCard } from '#/components/analytics/spending-pace'
 import { MonthlyTrend } from '#/components/analytics/monthly-trend'
@@ -52,6 +53,13 @@ export default function AnalyticsScreen() {
   const [editing, setEditing] = useState<EditableBudget | undefined>()
   const haptic = useHaptic()
 
+  const { refreshing, onRefresh } = usePullRefresh(isFetching, () => {
+    haptic.tap()
+    qc.invalidateQueries({ queryKey: ['analytics'] })
+    qc.invalidateQueries({ queryKey: ['budgets'] })
+    qc.invalidateQueries({ queryKey: ['goals'] })
+  })
+
   function prevMonth() {
     if (budgetMonth === 1) {
       setBudgetMonth(12)
@@ -94,13 +102,8 @@ export default function AnalyticsScreen() {
         }}
         refreshControl={
           <RefreshControl
-            refreshing={isFetching && !isLoading}
-            onRefresh={() => {
-              haptic.tap()
-              qc.invalidateQueries({ queryKey: ['analytics'] })
-              qc.invalidateQueries({ queryKey: ['budgets'] })
-              qc.invalidateQueries({ queryKey: ['goals'] })
-            }}
+            refreshing={refreshing}
+            onRefresh={onRefresh}
             progressViewOffset={insets.top + 8}
             tintColor={colors.muted}
             colors={[colors.muted]}

@@ -13,6 +13,7 @@ import { fmtBRL, fmtDate, tabularNums } from '#/lib/format'
 import { colors } from '#/theme/colors'
 import { CATEGORY_ICONS } from '#/lib/category-icons'
 import { useHaptic } from '#/lib/haptics'
+import { usePullRefresh } from '#/lib/use-pull-refresh'
 import { ProfileSheet } from '#/components/profile/profile-sheet'
 import { Skeleton } from '#/components/ui/skeleton'
 import { EmptyState } from '#/components/ui/empty-state'
@@ -42,6 +43,11 @@ export default function Dashboard() {
   const haptic = useHaptic()
   const totalBalance = data?.totalBalance ?? 0
 
+  const { refreshing, onRefresh } = usePullRefresh(isFetching, () => {
+    haptic.tap()
+    qc.invalidateQueries({ queryKey: ['dashboard'] })
+  })
+
   return (
     <>
     <ScrollView
@@ -54,11 +60,8 @@ export default function Dashboard() {
       }}
       refreshControl={
         <RefreshControl
-          refreshing={isFetching && !isLoading}
-          onRefresh={() => {
-            haptic.tap()
-            qc.invalidateQueries({ queryKey: ['dashboard'] })
-          }}
+          refreshing={refreshing}
+          onRefresh={onRefresh}
           tintColor={colors.muted}
           colors={[colors.muted]}
           progressViewOffset={insets.top + 8}
